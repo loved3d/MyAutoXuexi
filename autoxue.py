@@ -2317,7 +2317,7 @@ def begin_study(**args):
               args['emu_name'] + '"'
     elif cfg.get('emu_args', 'emu_name').lower() == 'nox':
         cmd = fr'start /b /D "D:\Program Files\Nox\bin\" nox -clone:Nox_{int(args["id"]) - 1} -quit'
-    elif cfg.get('emu_args', 'emu_name').lower() == 'nox':
+    elif cfg.get('emu_args', 'emu_name').lower() == 'leidian':
         cmd = 'start /b /D "' + cfg.get('emu_args', 'leidian_path') + '" dnconsole.exe quit --name ' + args[
             'emu_name']
     subprocess.Popen(cmd, shell=True, stderr=subprocess.PIPE)
