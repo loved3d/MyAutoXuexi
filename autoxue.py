@@ -80,10 +80,11 @@ class Automation:
                 self.driver = u2.connect(self.app_args['udid'])
                 break
             except Exception as msg:
+                time.sleep(5)
+                continue
                 # adb kill-server
                 # adb start-server
-                logger.info(f'【异常】{msg},启动connect出现问题,稍后5秒再尝试连接...')
-                time.sleep(5)
+                # logger.info(f'【异常】{msg},启动connect出现问题,稍后5秒再尝试连接...')
         self.size = self.driver.window_size()
         self.driver.implicitly_wait(10)
         self.driver.xpath.logger.setLevel(logging.DEBUG)
@@ -2382,29 +2383,35 @@ if __name__ == "__main__":
     subprocess.check_call(f"cls", shell=True)
     restart_adb_server()
     multiprocessing.freeze_support()
-    sche = scheduler()
-    # for run_args in app_args_list:
-    #     sche.enter(3, 0, appium_start, kwargs=run_args)
-    for run_args in app_args_list:
-        if run_args['testapp']:
-            logger.info(
-                f'[{run_args["username"]}]\033[27;31;45m 开启测试模式！！！\033[0m')
-        sche.enter(3, 1, emu_start, kwargs=run_args)
-    for run_args in app_args_list:
-        sche.enter(3, 2, adb_connect, kwargs=run_args)
-    sche.run()
+    queue_study = cfg.get('users', 'queue_study')
     time.sleep(10)
-    for run_args in app_args_list:
+    if queue_study == '0' or queue_study.upper() == 'FALSE':
+        sche = scheduler()
+        # for run_args in app_args_list:
+        #     sche.enter(3, 0, appium_start, kwargs=run_args)
+        for run_args in app_args_list:
+            if run_args['testapp']:
+                logger.info(
+                    f'[{run_args["username"]}]\033[27;31;45m 开启测试模式！！！\033[0m')
+            sche.enter(3, 1, emu_start, kwargs=run_args)
+        for run_args in app_args_list:
+            sche.enter(3, 2, adb_connect, kwargs=run_args)
+        sche.run()
         begin_xuexi = multiprocessing.Process(
             target=begin_study, kwargs=run_args)
         # begin_xuexi = threading.Thread(
         #     target=begin_study, kwargs=run_args)
         xuexi_process.append(begin_xuexi)
-    random.choice(xuexi_process)
-    for auto_xuexi in xuexi_process:
-        auto_xuexi.start()
-    for auto_xuexi in xuexi_process:
-        auto_xuexi.join()
+        random.choice(xuexi_process)
+        for auto_xuexi in xuexi_process:
+            auto_xuexi.start()
+        for auto_xuexi in xuexi_process:
+            auto_xuexi.join()
+    else:
+        for run_args in app_args_list:
+            emu_start(**run_args)
+            adb_connect(**run_args)
+            begin_study(**run_args)
     end_time = datetime.datetime.now()
     winsound.PlaySound(r'Ending.wav', winsound.SND_ALIAS)
     logger.info(
