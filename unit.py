@@ -11,7 +11,6 @@
 import time
 import logging
 import colorlog
-import psutil
 from pathlib import Path
 from configparser import ConfigParser
 
