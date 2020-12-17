@@ -160,7 +160,7 @@ class Automation:
         logger.debug(f'safe click {ele}')
         try:
             if self.driver.xpath(ele).click_exists(5):
-                time.sleep(0.5)
+                time.sleep(1)
                 return True
         except XPathElementNotFoundError:
             logger.debug(f'没找到学习或者答题入口...')
@@ -502,10 +502,11 @@ class AutoApp(Automation):
         while True:
             try:
                 total_score = self.driver.xpath(rules["total_score"]).wait(5).text
+                print(total_score)
                 logger.info(f'[{self.username}]\033[1;31;43m【{total_score}】')
                 score_list = self.driver.xpath(rules['score_list']).all()
                 break
-            except (AttributeError,XPathElementNotFoundError):
+            except (AttributeError, XPathElementNotFoundError):
                 logger.info(f'[{self.username}]\033[1;31;43m分数获取出错！\033[0m')
                 time.sleep(3)
         for t, score in zip(self.study_titles, score_list):
@@ -1796,7 +1797,7 @@ class AutoApp(Automation):
             elif cfg.get('emu_args', 'emu_name').lower() == 'nox':
                 volumes = self.driver.xpath(rules['nox_article_volume']).all()
             elif cfg.get('emu_args', 'emu_name').lower() == 'leidian':
-                volumes = self.driver.xpath(rules['nox_article_volume']).all()
+                volumes = self.driver.xpath(rules['xy_article_volume']).all()
             volumes[3].click()
             self.driver(className="android.widget.TextView",
                         resourceId="cn.xuexi.android:id/confirm_button").click_exists(0.5)
@@ -1826,21 +1827,15 @@ class AutoApp(Automation):
         volumes = None
         xpath = ''
         if cfg.get('emu_args', 'emu_name').lower() == 'microvirt':
-            xpath = '//*[@resource-id="cn.xuexi.android:id/view_pager"]/android.widget.FrameLayout[' \
-                    '1]/android.widget.LinearLayout[1]/android.widget.LinearLayout[1]/android.view.ViewGroup[1] '
+            xpath = '//*[@resource-id="cn.xuexi.android:id/view_pager"]/android.widget.FrameLayout[1]' \
+                    '/android.widget.LinearLayout[1]/android.widget.LinearLayout[1]/android.view.ViewGroup[1]'
         elif cfg.get('emu_args', 'emu_name').lower() == 'nox':
-            xpath = '//*[@resource-id="cn.xuexi.android:id/view_pager"]/android.widget.FrameLayout[' \
-                    '1]/android.widget.LinearLayout[1]/android.widget.LinearLayout[1]/android.view.View[1] '
+            xpath = '//*[@resource-id="cn.xuexi.android:id/view_pager"]/android.widget.FrameLayout[1]' \
+                    '/android.widget.LinearLayout[1]/android.widget.LinearLayout[1]/android.view.View[1]'
         elif cfg.get('emu_args', 'emu_name').lower() == 'leidian':
-            xpath = '//*[@resource-id="cn.xuexi.android:id/view_pager"]/android.widget.FrameLayout[' \
-                    '1]/android.widget.LinearLayout[1]/android.widget.LinearLayout[1]/android.view.View[1] '
+            xpath = '//*[@resource-id="cn.xuexi.android:id/view_pager"]/android.widget.FrameLayout[1]' \
+                    '/android.widget.LinearLayout[1]/android.widget.LinearLayout[1]/android.view.ViewGroup[1]'
         bound = self.driver.xpath(xpath).info['bounds']
-        # // android.widget.FrameLayout[1] / android.widget.LinearLayout[1] / android.widget.FrameLayout[1] / \
-        #    android.widget.LinearLayout[1] / android.widget.FrameLayout[1] / android.widget.LinearLayout[1] / \
-        #    android.widget.FrameLayout[1] / android.widget.RelativeLayout[1] / android.widget.LinearLayout[1] / \
-        #    android.widget.FrameLayout[2] / android.widget.FrameLayout[1] / android.support.v4.view.ViewPager[1] / \
-        #    android.widget.FrameLayout[1] / android.widget.LinearLayout[1] / android.widget.LinearLayout[1] / \
-        #    android.view.View[1]
         x1 = bound['left']
         x2 = bound['right']
         y1 = bound['top']
@@ -1869,7 +1864,7 @@ class AutoApp(Automation):
             elif cfg.get('emu_args', 'emu_name').lower() == 'nox':
                 volumes = self.driver.xpath(rules['nox_article_volume']).all()
             elif cfg.get('emu_args', 'emu_name').lower() == 'leidian':
-                volumes = self.driver.xpath(rules['nox_article_volume']).all()
+                volumes = self.driver.xpath(rules['xy_article_volume']).all()
             for vol in volumes:
                 if vol.text == title:
                     vol.click()
@@ -2197,6 +2192,8 @@ for i in user_list:
             'id': i,
             'username': decrypt(cfg.get('users', f'username{i}'), cfg.get('users', 'prikey_path')),
             'password': decrypt(cfg.get('users', f'password{i}'), cfg.get('users', 'prikey_path')),
+            # 'username': cfg.get('users', f'username{i}'),
+            # 'password': cfg.get('users', f'password{i}'),
             'emu_name': emu_name,
             'udid': udid,
             'host': '127.0.0.1',
@@ -2259,8 +2256,9 @@ def emu_start(**args):
     # cmd = f'start /b /D "D:\Program Files\Microvirt\MEmu\" MEmuConsole.exe "' + \
     #     args['emu_name']+'"'
     try:
-        subprocess.Popen(cmd, shell=True, stdout=open(
+        subp = subprocess.Popen(cmd, shell=True, stdout=open(
             '.\\logs\\' + port + '.log', 'a'), stderr=subprocess.PIPE)
+        subp.communicate()
     except Exception as e:
         logger.dubeg(e)
         pass
@@ -2276,13 +2274,15 @@ def adb_connect(**args):
     while True:
         try:
             if cfg.get('emu_args', 'emu_name').lower() == 'microvirt':
-                cmd = 'start /b /D "' + cfg.get('emu_args', 'microvirt_path') + '" adb connect ' + args["udid"]
+                cmd = r'start /b /D "' + cfg.get('emu_args', 'microvirt_path') + '" adb connect ' + args["udid"]
             elif cfg.get('emu_args', 'emu_name').lower() == 'nox':
-                cmd = 'start /b /D "' + cfg.get('emu_args', 'nox_path') + '" adb.exe connect ' + args["udid"]
+                cmd = r'start /b /D "' + cfg.get('emu_args', 'nox_path') + '" adb.exe connect ' + args["udid"]
             elif cfg.get('emu_args', 'emu_name').lower() == 'leidian':
-                cmd = 'start /b /D "' + cfg.get('emu_args', 'leidian_path') + '" adb.exe connect ' + args["udid"]
-            rtn_msg = subprocess.Popen(cmd, shell=True, stdout=open('.\\logs\\' + 'adbconnect.log', 'a'),
-                                       stderr=subprocess.STDOUT)
+                cmd = r'start /b /D "' + cfg.get('emu_args', 'leidian_path') + '" adb.exe connect ' + args["udid"]
+            subp = subprocess.Popen(cmd, shell=True, stdout=open('.\\logs\\' + 'adbconnect.log', 'a'),
+                                    stderr=subprocess.STDOUT)
+            # subp.wait(15)
+            subp.communicate()
             # print(rtn_msg)
             break
             # if 0 == subprocess.Popen(f'adb connect {args["udid"]}', shell=True, stdout=open(
@@ -2320,7 +2320,11 @@ def begin_study(**args):
     elif cfg.get('emu_args', 'emu_name').lower() == 'leidian':
         cmd = 'start /b /D "' + cfg.get('emu_args', 'leidian_path') + '" dnconsole.exe quit --name ' + args[
             'emu_name']
-    subprocess.Popen(cmd, shell=True, stderr=subprocess.PIPE)
+    try:
+        subp = subprocess.Popen(cmd, shell=True, stderr=subprocess.PIPE)
+        subp.communicate()
+    except subprocess.CalledProcessError as msg:
+        logger.info(f'模拟器未能自动关闭，请自行手动关闭...')
 
     # win32api.MessageBox(0, f'{app_args_list["username"]}今日学习完成！', "恭喜你学习完成", win32con.MB_OK)
 
@@ -2391,10 +2395,10 @@ if __name__ == "__main__":
     sche.run()
     time.sleep(10)
     for run_args in app_args_list:
-        # begin_xuexi = multiprocessing.Process(
-        #     target=begin_study, kwargs=run_args)
-        begin_xuexi = threading.Thread(
+        begin_xuexi = multiprocessing.Process(
             target=begin_study, kwargs=run_args)
+        # begin_xuexi = threading.Thread(
+        #     target=begin_study, kwargs=run_args)
         xuexi_process.append(begin_xuexi)
     random.choice(xuexi_process)
     for auto_xuexi in xuexi_process:

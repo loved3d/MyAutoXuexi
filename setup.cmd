@@ -6,11 +6,6 @@ echo install venv...
 python -m venv venv
 echo venv installed OK.
 echo install packages...
-venv\scripts\python -m pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
-REM venv\scripts\python -m pip install --upgrade pip -i https://pypi.tuna.tsinghua.edu.cn/simple
-REM venv\scripts\python -m pip install requests -i https://pypi.tuna.tsinghua.edu.cn/simple
-REM venv\scripts\python -m pip install Appium-Python-Client -i https://pypi.tuna.tsinghua.edu.cn/simple
-REM venv\scripts\python -m pip install pycryptodome -i https://pypi.tuna.tsinghua.edu.cn/simple
-
+pip install -r requirements.txt
 echo packages installed OK.
 pause
