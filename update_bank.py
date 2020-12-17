@@ -4,7 +4,7 @@
 @project: AutoXue
 @file: update_bank.py
 @author: alonik
-@contact: https://github.com/kessil/AutoXue/
+@contact: https://github.com/my-autoxuexi/myAutoXuexi
 @time: 2020-10-16(星期五) 09:03
 @Copyright © 2020. All rights reserved.
 """
@@ -31,7 +31,7 @@ for line in lines:
         quiz_line = re.sub(r'(?<=。)(?![\w\W]*。)[\w\W]+', '', quiz_line)
     if "答案解析：" in quiz_line:
         continue
-    if '正确答案[:：]' in quiz_line or '答案[:：]' in quiz_line:
+    if len(re.findall(r"答案[：,:]", quiz_line)) > 0:
         try:
             quiz_answer = quiz_line.strip("\r\n").split('：', 1)[1]
         except Exception as msg:
