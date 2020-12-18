@@ -72,24 +72,36 @@ class Automation:
         }
         # logger.info('打开 appium 服务,正在配置...')
         # self.appium_start()
+        logger.info(f'[{self.app_args["username"]}]启动 connect 服务,正在配置...')
         while True:
             try:
-                logger.info('启动 connect 服务,正在配置...')
                 # self.conn = u2.connect(self.app_args['udid'])
                 # self.driver = self.conn.session(cfg.get('capability', 'apppackage'), 15)
+                # self.driver = u2.connect(self.app_args['udid'])
                 self.driver = u2.connect(self.app_args['udid'])
                 break
             except Exception as msg:
-                time.sleep(5)
-                continue
+                time.sleep(3)
                 # adb kill-server
                 # adb start-server
                 # logger.info(f'【异常】{msg},启动connect出现问题,稍后5秒再尝试连接...')
         self.size = self.driver.window_size()
         self.driver.implicitly_wait(10)
         self.driver.xpath.logger.setLevel(logging.DEBUG)
-        # 屏幕方法
 
+    @staticmethod
+    def get_device_list():
+        cmd = r'adb devices'  # % apk_file
+        subps = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
+        subps.wait()
+        device_list = subps.stdout.readlines()  # out = pr.stdout.read().decode("UTF-8")
+        devices = []
+        for device_str in device_list[1:-1]:
+            device = str(device_str).split("\\")[0].split("'")[-1]
+            devices.append(device)
+        return devices  # 手机设备列表
+
+    # 屏幕方法
     def swipe_up(self, times=1):
         """ 向上滑动屏幕  """
         for _ in range(times):
@@ -149,12 +161,12 @@ class Automation:
     # 返回事件
     def safe_back(self, msg='default msg'):  # 你用msg里面含有home字符的特点，看看是不是已经退到了主页了
         if not self.driver.xpath(rules['home_entry']).wait(0.5):
-            logger.debug(f'[{self.username}]返回到【{msg}】页面。')
+            logger.debug(f'[{self.app_args["username"]}]返回到【{msg}】页面。')
             self.driver.press('back')  # 模拟按下返回键
             time.sleep(1)
             return
         else:
-            logger.info(f'[{self.username}]已经到了主页面，再返回就退出APP啦')
+            logger.info(f'[{self.app_args["username"]}]已经到了主页面，再返回就退出APP啦')
             return
 
     def safe_click(self, ele: str):
@@ -204,7 +216,6 @@ class AutoApp(Automation):
         # self.driver = self.driver.session(cfg.get('capability', 'apppackage'))
         # self.driver.wait_activity('com.alibaba.android.rimet.biz.home.activity.HomeActivity', 15)
         # self.driver = self.driver.session(cfg.get('capability', 'apppackage'))
-
         # self.driver.press('volume_mute')
         self.mute()
         self.driver.app_start(cfg.get('capability', 'apppackage'), cfg.get('capability', 'appactivity'), wait=True)
@@ -213,6 +224,7 @@ class AutoApp(Automation):
         # 因为挑战答题、每周答题、专项答题都用到每日答题模块
         # 所以先初始化每日答题部分变量
         self._daily_init()
+        self._play_radio_background()
 
     @staticmethod
     def shuffle(funcs):
@@ -505,6 +517,8 @@ class AutoApp(Automation):
                 total_score = self.driver.xpath(rules["total_score"]).wait(5).text
                 print(total_score)
                 logger.info(f'[{self.username}]\033[1;31;43m【{total_score}】')
+                if total_score == '今日已累积 --积分':
+                    continue
                 score_list = self.driver.xpath(rules['score_list']).all()
                 break
             except (AttributeError, XPathElementNotFoundError):
@@ -1911,13 +1925,13 @@ class AutoApp(Automation):
             self.view_delay = self.read_delay = cfg.getint("test", "test_delay")
         else:
             self.radio_channel = cfg.get("prefers", "radio_channel")
-            self.view_delay = self.view_time // self.video_count
             g, t = self.score["视听学习"]
             if t == g:
                 self.video_count = 0
             else:
                 self.video_count = random.randint(cfg.getint('prefers', 'video_count_min'),
                                                   cfg.getint('prefers', 'video_count_max')) - g
+                self.view_delay = self.view_time // self.video_count
 
     def music(self):
         if "disable" == self.has_bgm:
@@ -2374,6 +2388,7 @@ def restart_adb_server():
     else:
         logger.info(
             f'\033[27;31;46m adb start-server失败\033[0m')
+    time.sleep(3)
 
 
 xuexi_process = []
@@ -2381,10 +2396,9 @@ xuexi_process = []
 if __name__ == "__main__":
     begin_time = datetime.datetime.now()
     subprocess.check_call(f"cls", shell=True)
-    restart_adb_server()
+    # restart_adb_server()
     multiprocessing.freeze_support()
     queue_study = cfg.get('users', 'queue_study')
-    time.sleep(10)
     if queue_study == '0' or queue_study.upper() == 'FALSE':
         sche = scheduler()
         # for run_args in app_args_list:
@@ -2397,11 +2411,12 @@ if __name__ == "__main__":
         for run_args in app_args_list:
             sche.enter(3, 2, adb_connect, kwargs=run_args)
         sche.run()
-        begin_xuexi = multiprocessing.Process(
-            target=begin_study, kwargs=run_args)
-        # begin_xuexi = threading.Thread(
-        #     target=begin_study, kwargs=run_args)
-        xuexi_process.append(begin_xuexi)
+        for run_args in app_args_list:
+            begin_xuexi = multiprocessing.Process(
+                target=begin_study, kwargs=run_args)
+            # begin_xuexi = threading.Thread(
+            #     target=begin_study, kwargs=run_args)
+            xuexi_process.append(begin_xuexi)
         random.choice(xuexi_process)
         for auto_xuexi in xuexi_process:
             auto_xuexi.start()
