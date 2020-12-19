@@ -16,6 +16,7 @@ import multiprocessing
 import re
 import string
 import subprocess
+import sys
 import threading
 import time
 import winsound
@@ -38,6 +39,7 @@ import pysnooper
 class Automation:
     # 初始化 Appium 基本参数
 
+    # @pysnooper.snoop()
     def __init__(self, appargs):
         # self.connect()
         # self.device_id = devices.connect_device()
@@ -169,11 +171,11 @@ class Automation:
             logger.info(f'[{self.app_args["username"]}]已经到了主页面，再返回就退出APP啦')
             return
 
-    def safe_click(self, ele: str):
+    def safe_click(self, ele: str, delay=1):
         logger.debug(f'safe click {ele}')
         try:
             if self.driver.xpath(ele).click_exists(5):
-                time.sleep(1)
+                time.sleep(delay)
                 return True
         except XPathElementNotFoundError:
             logger.debug(f'没找到学习或者答题入口...')
@@ -188,6 +190,7 @@ class Automation:
 
 
 class AutoApp(Automation):
+    # @pysnooper.snoop()
     def __init__(self, appargs):
         super().__init__(appargs)
         self.study_titles = ["登录", "我要选读文章", "视听学习", "视听学习时长", "每日答题", "每周答题", "专项答题", "挑战答题", "争上游答题", "双人对战", "订阅",
@@ -224,7 +227,8 @@ class AutoApp(Automation):
         # 因为挑战答题、每周答题、专项答题都用到每日答题模块
         # 所以先初始化每日答题部分变量
         self._daily_init()
-        self._play_radio_background()
+        if self.has_bgm.lower() == 'enable':
+            self._play_radio_background()
 
     @staticmethod
     def shuffle(funcs):
@@ -470,14 +474,14 @@ class AutoApp(Automation):
                 logger.info(
                     f'[{self.username}]\033[27;31;44m {total_title}：{score} \033[0m')
             # print(s1)
-            if cfg.getboolean("prefers", "keep_alive"):
+            if cfg.get("prefers", "keep_alive") == '1' or cfg.get("prefers", "keep_alive").upper() == 'TRUE':
                 logger.debug("无需自动注销账号")
                 return
             self.back_to_home()
-            self.safe_click(rules["mine_entry"])
-            self.safe_click(rules["setting_submit"])
-            self.safe_click(rules["logout_submit"])
-            self.safe_click(rules["logout_confirm"])
+            self.safe_click(rules["mine_entry"], 3)
+            self.safe_click(rules["setting_submit"], 3)
+            self.safe_click(rules["logout_submit"], 3)
+            self.safe_click(rules["logout_confirm"], 3)
         logger.info("已注销")
 
     def back_to_answer(self, item_name):
@@ -506,7 +510,7 @@ class AutoApp(Automation):
         根据得分情况，运行未完成得分的相应模块
         """
         self.run_modules.clear()
-        while not self.safe_click(rules['score_entry']):
+        while not self.driver.xpath(rules['score_entry']).click_exists(10):
             time.sleep(3)
             self.back_to_home()
         time.sleep(3)
@@ -2182,7 +2186,7 @@ leidian_string = r'start /b /D "D:\Program Files\Nox\bin" NoxConsole.exe launch 
 user_list = list(
     set(re.split(r'[,，;；、/.\s]', cfg.get('users', 'study_users'))))
 try:
-    if cfg.get('test', 'is_test') == '0' or cfg.get('test', 'is_test').upper() == 'False':
+    if cfg.get('test', 'is_test') == '0' or cfg.get('test', 'is_test').upper() == 'FALSE':
         is_test = False
     else:
         is_test = True
@@ -2411,6 +2415,7 @@ if __name__ == "__main__":
         for run_args in app_args_list:
             sche.enter(3, 2, adb_connect, kwargs=run_args)
         sche.run()
+        time.sleep(15)
         for run_args in app_args_list:
             begin_xuexi = multiprocessing.Process(
                 target=begin_study, kwargs=run_args)
