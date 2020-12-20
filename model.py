@@ -258,46 +258,6 @@ class BankQuery:
         # 关闭数据库连接
         self.db.close()
 
-        # sql = f"UPDATE {answer_table} SET win_times=win_times+{item[3]}, " + \
-        #       f"loss_times=loss_times+{item[4]} WHERE date='{item[1]}' AND module='{item[2]}' "
-        # if self.data_platform == 'mysql':
-        #     sql = f"INSERT INTO {answer_table}({keys}) VALUES {tuple(item)} ON DUPLICATE KEY UPDATE " +\
-        #           f"win_times=win_times+{item[3]},loss_times=loss_times+{item[4]}"
-        #     try:
-        #         # 执行SQL语句
-        #         self.cursor.execute(sql)
-        #         print('更新success！')
-        #         # 提交到数据库执行
-        #         self.db.commit()
-        #     except:
-        #         # 发生错误时回滚
-        #         traceback.print_exc()
-        #         print('更新出错了！')
-        #         self.db.rollback()
-        #     # 关闭数据库连接
-        #     self.db.close()
-        #     return
-        # elif self.data_platform == 'sqlite3':
-        #     sql1 = f'INSERT OR REPLACE INTO {answer_table}({keys}) VALUES {tuple(item)}  ' + \
-        #           f'ON CONFLICT(ID) DO UPDATE SET  ' +\
-        #           f'win_times=win_times+{item[3]},loss_times=loss_times+{item[4]}'
-        #     sql2 = f'UPDATE answer_rec SET win_times=win_times+{item[3]},loss_times=loss_times+{item[4]} where date="{item[1]}" and module="{item[2]}";'
-        #     try:
-        #         # 执行SQL语句
-        #         self.cursor.execute(sql1)
-        #         self.cursor.execute(sql2)
-        #         print('更新success！')
-        #         # 提交到数据库执行
-        #         self.db.commit()
-        #     except:
-        #         # 发生错误时回滚
-        #         traceback.print_exc()
-        #         print('更新出错了！')
-        #         self.db.rollback()
-        #     # 关闭数据库连接
-        #     self.db.close()
-
-    # 去除原先数据一些含有特殊字符的数据
 
     def organize(self):
         """

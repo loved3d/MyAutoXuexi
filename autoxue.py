@@ -83,12 +83,30 @@ class Automation:
                 self.driver = u2.connect(self.app_args['udid'])
                 break
             except Exception as msg:
-                time.sleep(3)
+                time.sleep(5)
+                # devices=self.get_device_list()
+                # for i in range(len(devices)):
+                #     if
+                # subprocess.call("taskkill -F -PID adb.exe",
+                #                 shell=True, stderr=subprocess.STDOUT)
+                # List of devices attached
+                # 127.0.0.1:5555  offline
+                # 127.0.0.1:5557  offline
+                # 127.0.0.1:5559  offline
+                # emulator-5554   device
+                # emulator-5556   device
+                # emulator-5558   device
+                # devices = self.get_device_list()
+                cmd = 'adb connect ' + self.app_args['udid']
+                subps = subprocess.Popen(cmd, shell=True, stdout=open('.\\logs\\' + 'adbconnect.log', 'a'),
+                                         stderr=subprocess.STDOUT)
+                # subps.wait(15)
+                subps.communicate()
                 # adb kill-server
                 # adb start-server
                 # logger.info(f'【异常】{msg},启动connect出现问题,稍后5秒再尝试连接...')
         self.size = self.driver.window_size()
-        self.driver.implicitly_wait(10)
+        self.driver.implicitly_wait(15)
         self.driver.xpath.logger.setLevel(logging.DEBUG)
 
     @staticmethod
@@ -171,10 +189,10 @@ class Automation:
             logger.info(f'[{self.app_args["username"]}]已经到了主页面，再返回就退出APP啦')
             return
 
-    def safe_click(self, ele: str, delay=1):
+    def safe_click(self, ele: str, timeout=5, delay=1):
         logger.debug(f'safe click {ele}')
         try:
-            if self.driver.xpath(ele).click_exists(5):
+            if self.driver.xpath(ele).click_exists(timeout):
                 time.sleep(delay)
                 return True
         except XPathElementNotFoundError:
@@ -226,6 +244,7 @@ class AutoApp(Automation):
         self.login_or_not()
         # 因为挑战答题、每周答题、专项答题都用到每日答题模块
         # 所以先初始化每日答题部分变量
+        self._weekly_init()
         self._daily_init()
         if self.has_bgm.lower() == 'enable':
             self._play_radio_background()
@@ -311,23 +330,25 @@ class AutoApp(Automation):
             raise ValueError('需要提供登录的用户名和密钥，或者提前在App登录账号后运行本程序')
         while True:
             try:
-                username = self.driver.xpath(rules['login_username'])
-                password = self.driver.xpath(rules['login_password'])
-                username.set_text(self.username)
-                password.set_text(self.password)
-                break
+                if self.driver.xpath(rules['login_username']).wait(15):
+                    username = self.driver.xpath(rules['login_username'])
+                    password = self.driver.xpath(rules['login_password'])
+                    username.set_text(self.username)
+                    password.set_text(self.password)
+                    break
             except XPathElementNotFoundError:
                 pass
-        self.driver(text='登录').click_exists(3)
+        self.driver(text='登录').click_exists(10)
         time.sleep(2)
-        self.driver(text='同意并继续').click_exists(3)
+        self.driver(text='同意并继续').click_exists(10)
         time.sleep(2)
-        self.driver(text='同意').click_exists(3)
+        self.driver(text='同意').click_exists(10)
         time.sleep(2)
 
     def start(self):
         # i = random.random()
         # times防止程序不停验证是否答题完毕
+        self.workday_warning()
         self.view_score()
         # self._play_radio_background()
         times = 0
@@ -346,6 +367,7 @@ class AutoApp(Automation):
                 f'[{self.username}] \033[7;33;41m复核第{times + 1}遍，看看是不是全部阅读答题完毕。\033[0m')
             times += 1
         # logger.info(f'[{self.username}]\033[1;31;43m【{total_score}】')
+        total_score = 0
         for score in self.score:
             if not self.is_workday() and (score == '专项答题' or score == '每周答题') and self.score[score][0] == 0:
                 logger.info(
@@ -354,16 +376,18 @@ class AutoApp(Automation):
                 logger.info(
                     f'[{self.username}]\033[7;41m【{score}】 应完成{self.score[score][1]}分，' +
                     f'实际完成{self.score[score][0]}分，无需重复获取积分。\033[0m')
+                total_score += self.score[score][0]
             else:
                 logger.info(
                     f'[{self.username}]\033[41;4m【{score}】 应完成{self.score[score][1]}分，' +
                     f'实际完成{self.score[score][0]}分，有可能未完成该项学习。\033[0m')
+                total_score += self.score[score][0]
+        # logger.info(f'[{self.username}]\033[7;41m【本次学习总得分】{total_score}分')
         self.logout_or_not()
         # sys.exit(0)
 
     def test(self):
         """ 测试运行模块
-
         根据配置文件的设置
         调用set_test_module方法，将需要测试的模块加入到测试过程
         """
@@ -447,42 +471,50 @@ class AutoApp(Automation):
             self.kaleidoscope()
             is_over = False
             pass
-
         return is_over, funcs
 
-    def leaveout_answer(self):
-        # 先看看分享和发表观点是否做完
-        # 每周答题和专项答题排除在验证之外
-        for individual_score in self.score:
-            if individual_score[0] == individual_score[1]:
-                pass
-        self.start()
-        pass
-
     def logout_or_not(self):
-        tscore = ["总计积分"]
-        self.safe_click(rules['score_entry'])
-        try:
-            total_score = self.driver.xpath(rules["total_score"]).all()
-        except XPathElementNotFoundError:
+        while not self.driver.xpath(rules['score_entry']).click_exists(10):
+            time.sleep(3)
             self.back_to_home()
-            self.safe_click(rules['score_entry'])
-        else:
-            for total_title, total in zip(tscore, total_score):
-                score = total.text
-                # 打印当日总分
-                logger.info(
-                    f'[{self.username}]\033[27;31;44m {total_title}：{score} \033[0m')
-            # print(s1)
-            if cfg.get("prefers", "keep_alive") == '1' or cfg.get("prefers", "keep_alive").upper() == 'TRUE':
-                logger.debug("无需自动注销账号")
-                return
-            self.back_to_home()
-            self.safe_click(rules["mine_entry"], 3)
-            self.safe_click(rules["setting_submit"], 3)
-            self.safe_click(rules["logout_submit"], 3)
-            self.safe_click(rules["logout_confirm"], 3)
+        time.sleep(3)
+        # 第一次或者版本更新会有一到两个提示窗出现
+        self.driver.xpath(rules['score_remind']).click_exists(2)
+        while True:
+            try:
+                total_score = self.driver.xpath(rules["total_score"]).wait(5).text
+                if total_score == '今日已累积 --积分':
+                    continue
+                logger.info(f'[{self.username}]\033[1;31;43m【{total_score}】')
+                score_list = self.driver.xpath(rules['score_list']).all()
+                break
+            except (AttributeError, XPathElementNotFoundError):
+                logger.info(f'[{self.username}]\033[1;31;43m分数获取出错！\033[0m')
+                time.sleep(3)
+        if cfg.get("prefers", "keep_alive") == '1' or cfg.get("prefers", "keep_alive").upper() == 'TRUE':
+            logger.debug("无需自动注销账号")
+            return
+        self.back_to_home()
+        self.safe_click(rules["mine_entry"], 3)
+        self.safe_click(rules["setting_submit"], 3)
+        self.safe_click(rules["logout_submit"], 3)
+        self.safe_click(rules["logout_confirm"], 3)
         logger.info("已注销")
+
+    def workday_warning(self):
+        week_str = ['星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日']
+        day_of_week = datetime.datetime.now().isoweekday()
+        warning = ''
+        for day in self.workdays:
+            warning = warning + week_str[int(day) - 1] + '、'
+        if warning is not None:
+            logger.debug(f'[{self.username}]\033[41;4m 你设置了在{warning}进行答题。\033[0m')
+        if str(day_of_week) in self.workdays:
+            logger.debug(f'[{self.username}]\033[41;4m 今日不是答题日。\033[0m')
+            return True
+        else:
+            logger.info(f'[{self.username}]\033[41;4m 今日不是答题日，所以不会进行【每周答题】和【专项答题】。\033[0m')
+            return False
 
     def back_to_answer(self, item_name):
         # 首先让程序回到主界面
@@ -509,6 +541,7 @@ class AutoApp(Automation):
         查看得分情况
         根据得分情况，运行未完成得分的相应模块
         """
+        score_list = []
         self.run_modules.clear()
         while not self.driver.xpath(rules['score_entry']).click_exists(10):
             time.sleep(3)
@@ -519,10 +552,9 @@ class AutoApp(Automation):
         while True:
             try:
                 total_score = self.driver.xpath(rules["total_score"]).wait(5).text
-                print(total_score)
-                logger.info(f'[{self.username}]\033[1;31;43m【{total_score}】')
                 if total_score == '今日已累积 --积分':
                     continue
+                logger.info(f'[{self.username}]\033[1;31;43m【{total_score}】')
                 score_list = self.driver.xpath(rules['score_list']).all()
                 break
             except (AttributeError, XPathElementNotFoundError):
@@ -891,7 +923,7 @@ class AutoApp(Automation):
             content = ' '.join(content.split())
         if options is not None:
             quiz_option = [re.match(r'.*?\.(.*)', x).group(1).strip() for x in options]
-        letters = 'ABCD'
+        letters = 'AB'
         answer = ''
         self.bank, result_count = self.query.get({
             "category": "单选题",
@@ -904,7 +936,7 @@ class AutoApp(Automation):
             answer = self.bank["answer"]
         elif self.bank is None:
             logger.debug(f'[{self.username}]准备更新题库,随机选个答案')
-            answer = random.choice(letters[:len(options)])
+            answer = random.choice(letters)
             self._update_bank({
                 "category": "单选题",
                 "content": content,
@@ -953,9 +985,10 @@ class AutoApp(Automation):
         quiz_num = 1
         while quiz_num < 6:
             try:
-                if self.driver(textStartsWith=f'{quiz_num}. ').wait(5):
-                    content = self.driver(textStartsWith=f'{quiz_num}. ').get_text()
-                else:
+                content = self.driver(textStartsWith=f'{quiz_num}. ').get_text(10)
+                if content is None:
+                    if self.driver(text="正确数/总题数").exists:
+                        break
                     continue
                 options = None
                 answer, result_count = self._simple_verify(content, options)
@@ -965,7 +998,8 @@ class AutoApp(Automation):
                     # time.sleep(random.uniform(0.01, 0))
                     for _ in range(5):
                         self.driver.click(x, y)
-                        # time.sleep(random.uniform(0.01, 0))
+                    time.sleep(1.5)
+                    # time.sleep(random.uniform(0.01, 0))
                     # self.driver(className='android.widget.RadioButton')[choose_index].click()
                     wf_end_time = datetime.datetime.now()
                     quiz_num += 1
@@ -981,14 +1015,14 @@ class AutoApp(Automation):
                     for _ in range(5):
                         self.driver.click(x, y)
                         # time.sleep(random.uniform(0.01, 0))
+                    time.sleep(1.5)
                     wf_end_time = datetime.datetime.now()
                     logger.info(f'\033[7;41m 【2.答案】{answer}\033[0m')
                     quiz_num += 1
             except (AttributeError, IndexError, UiObjectNotFoundError, XPathElementNotFoundError) as msg:
                 logger.info(f'异常信息：{msg}')
                 self.driver.watcher.when('游戏开始超时！').click()
-                dur_time = datetime.datetime.now() - wf_begin_time
-                if dur_time.seconds > 30:
+                if self.driver(text="正确数/总题数").exists:
                     if self.is_finish_page(wf_begin_time, wf_end_time, module_name):
                         logger.info(f'\033[7;41m 第一层返回\033[0m')
                         return
@@ -1011,13 +1045,14 @@ class AutoApp(Automation):
             else:
                 run_times = cfg.getint('prefers', 'who_first_times') - 1
         self._who_first_init()
-        self.safe_click(rules["mine_entry"])
-        self.safe_click(rules["quiz_entry"])
+        self.safe_click(rules["mine_entry"], 15)
+        # self.driver.xpath(rules["mine_entry"])
+        self.safe_click(rules["quiz_entry"], 15)
         # 更新后会出现一个提示窗口，需要确定关闭掉
         self.driver.xpath(rules['quiz_updateinfo']).click_exists(2)
         # 翻过新更新的提示页面（三个按钮的xpath一样的）
         self.quiz_entry_warning()
-        self.safe_click(rules["who_first_entry"])
+        self.safe_click(rules["who_first_entry"], 15)
         for num in range(run_times):
             time.sleep(random.uniform(0.75, 1.15))
             logger.info(
@@ -1118,7 +1153,7 @@ class AutoApp(Automation):
         run_times = 1
         if self.app_args['testapp'] is False:
             g, t = self.score["双人对战"]
-            if g == t:
+            if g > 0:
                 return
             if self.one_vs_one_finished:
                 return
@@ -2314,7 +2349,7 @@ def adb_connect(**args):
             #         f'[{args["username"]}]\033[27;31;46m 模拟器 {args["udid"]} 连接失败\033[0m')
         except subprocess.CalledProcessError as msg:
             logger.info(f'{msg},adb连接失败，5秒后重试...')
-            time.sleep(5)
+            time.sleep(10)
 
 
 def begin_study(**args):
@@ -2332,10 +2367,11 @@ def begin_study(**args):
     logger.info(
         f'\033[7;41m 关闭{args["username"]}使用的模拟器！\033[0m')
     if cfg.get('emu_args', 'emu_name').lower() == 'microvirt':
-        cmd = r'start /b /D "D:\Program Files\Microvirt\MEmu\" memuc stop -n  "' + \
+        cmd = fr'start /b /D "' + cfg.get('emu_args', 'microvirt_path') + '" memuc stop -n  "' + \
               args['emu_name'] + '"'
     elif cfg.get('emu_args', 'emu_name').lower() == 'nox':
-        cmd = fr'start /b /D "D:\Program Files\Nox\bin\" nox -clone:Nox_{int(args["id"]) - 1} -quit'
+        cmd = fr'start /b /D "' + cfg.get('emu_args', 'nox_path') + \
+              f'" NoxConsole.exe quit -index:{int(args["id"]) - 1}'
     elif cfg.get('emu_args', 'emu_name').lower() == 'leidian':
         cmd = 'start /b /D "' + cfg.get('emu_args', 'leidian_path') + '" dnconsole.exe quit --name ' + args[
             'emu_name']
@@ -2348,42 +2384,43 @@ def begin_study(**args):
     # win32api.MessageBox(0, f'{app_args_list["username"]}今日学习完成！', "恭喜你学习完成", win32con.MB_OK)
 
 
+def close_emu(emu='leidian'):
+    cmd = ''
+    if emu.upper() == 'microvirt'.upper():
+        cmd = f'start /b /D "' + cfg.get('emu_args', 'microvirt_path') + '" memuc stopall'
+    elif emu.upper() == 'nox'.upper():
+        cmd = f'start /b /D "' + cfg.get('emu_args', 'nox_path') + '" NoxConsole.exe quitall'
+    elif emu.upper() == 'leidian'.upper():
+        cmd = f'start /b /D "' + cfg.get('emu_args', 'leidian_path') + '" dnconsole.exe quitall'
+    if 0 == subprocess.check_call(cmd, shell=True, stdout=open(
+            '.\\logs\\' + 'emu.log', 'a'), stderr=subprocess.STDOUT):
+        logger.info(
+            f'\033[27;31;46m 成功关闭已经打开的模拟器。\033[0m')
+    else:
+        logger.info(
+            f'\033[27;31;46m 关闭模拟器操作失败...\033[0m')
+
+
 def restart_adb_server():
-    """
-    清理appium环境,杀node.exe的进程
-    :return:
-    """
-    # res = subprocess.Popen('tasklist | find "node.exe"',
-    #                        shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    # out = res.stdout.readlines()
-    # if len(out) > 0:
-    #     logger.info(f'\033[7;41m 关闭所有的Appium服务！\033[0m')
-    #     # if len(server_list) > 0:
-    #     subprocess.call("taskkill -F -PID node.exe",
-    #                     shell=True, stderr=subprocess.STDOUT)
     cmd = ''
     if cfg.get('emu_args', 'emu_name').lower() == 'microvirt':
         cmd = 'start /b /D "' + cfg.get('emu_args', 'microvirt_path') + '" adb.exe '
+        close_emu('microvirt')
     elif cfg.get('emu_args', 'emu_name').lower() == 'nox':
         cmd = 'start /b /D "' + cfg.get('emu_args', 'nox_path') + '" adb.exe '
+        close_emu('Nox')
     elif cfg.get('emu_args', 'emu_name').lower() == 'leidian':
         cmd = 'start /b /D "' + cfg.get('emu_args', 'leidian_path') + '" adb.exe '
+        close_emu('leidian')
 
-    if 0 == subprocess.check_call(cmd + 'disconnect', shell=True, stdout=open(
-            '.\\logs\\' + 'adbconnect.log', 'a'), stderr=subprocess.STDOUT):
-        logger.info(
-            f'\033[27;31;46m adb disconnect成功\033[0m')
-    else:
-        logger.info(
-            f']\033[27;31;46m adb disconnect失败\033[0m')
-    time.sleep(1)
-    if 0 == subprocess.check_call(cmd + 'kill-server', shell=True, stdout=open(
-            '.\\logs\\' + 'adbconnect.log', 'a'), stderr=subprocess.STDOUT):
-        logger.info(
-            f'\033[27;31;46m adb kill-server成功\033[0m')
-    else:
-        logger.info(
-            f']\033[27;31;46m adb kill-server失败\033[0m')
+    res = subprocess.Popen('tasklist | find "adb.exe"',
+                           shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    out = res.stdout.readlines()
+    if len(out) > 0:
+        logger.info(f'\033[7;41m 关闭所有的adb服务！\033[0m')
+        # if len(server_list) > 0:
+        subprocess.call("taskkill -F -PID adb.exe",
+                        shell=True, stderr=subprocess.STDOUT)
     time.sleep(1)
     if 0 == subprocess.check_call(cmd + 'start-server', shell=True, stdout=open(
             '.\\logs\\' + 'adbconnect.log', 'a'), stderr=subprocess.STDOUT):
@@ -2395,12 +2432,16 @@ def restart_adb_server():
     time.sleep(3)
 
 
+def close_port():
+    pass
+
+
 xuexi_process = []
 
 if __name__ == "__main__":
     begin_time = datetime.datetime.now()
     subprocess.check_call(f"cls", shell=True)
-    # restart_adb_server()
+    restart_adb_server()
     multiprocessing.freeze_support()
     queue_study = cfg.get('users', 'queue_study')
     if queue_study == '0' or queue_study.upper() == 'FALSE':
@@ -2415,7 +2456,7 @@ if __name__ == "__main__":
         for run_args in app_args_list:
             sche.enter(3, 2, adb_connect, kwargs=run_args)
         sche.run()
-        time.sleep(15)
+        time.sleep(20)
         for run_args in app_args_list:
             begin_xuexi = multiprocessing.Process(
                 target=begin_study, kwargs=run_args)
