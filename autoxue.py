@@ -84,27 +84,11 @@ class Automation:
                 break
             except Exception as msg:
                 time.sleep(5)
-                # devices=self.get_device_list()
-                # for i in range(len(devices)):
-                #     if
-                # subprocess.call("taskkill -F -PID adb.exe",
-                #                 shell=True, stderr=subprocess.STDOUT)
-                # List of devices attached
-                # 127.0.0.1:5555  offline
-                # 127.0.0.1:5557  offline
-                # 127.0.0.1:5559  offline
-                # emulator-5554   device
-                # emulator-5556   device
-                # emulator-5558   device
-                # devices = self.get_device_list()
                 cmd = 'adb connect ' + self.app_args['udid']
                 subps = subprocess.Popen(cmd, shell=True, stdout=open('.\\logs\\' + 'adbconnect.log', 'a'),
                                          stderr=subprocess.STDOUT)
                 # subps.wait(15)
                 subps.communicate()
-                # adb kill-server
-                # adb start-server
-                # logger.info(f'【异常】{msg},启动connect出现问题,稍后5秒再尝试连接...')
         self.size = self.driver.window_size()
         self.driver.implicitly_wait(15)
         self.driver.xpath.logger.setLevel(logging.DEBUG)
@@ -234,13 +218,9 @@ class AutoApp(Automation):
         self.video_count = 5
         self.has_bgm = cfg.get('prefers', 'radio_switch')
         self.score = defaultdict(tuple)
-        # self.driver = self.driver.session(cfg.get('capability', 'apppackage'))
-        # self.driver.wait_activity('com.alibaba.android.rimet.biz.home.activity.HomeActivity', 15)
-        # self.driver = self.driver.session(cfg.get('capability', 'apppackage'))
-        # self.driver.press('volume_mute')
-        self.mute()
         self.driver.app_start(cfg.get('capability', 'apppackage'), cfg.get('capability', 'appactivity'), wait=True)
-        self.driver.wait_activity('com.alibaba.android.rimet.biz.home.activity.HomeActivity', 15)
+        # self.mute()
+        # self.driver.wait_activity('com.alibaba.android.rimet.biz.home.activity.HomeActivity', 15)
         self.login_or_not()
         # 因为挑战答题、每周答题、专项答题都用到每日答题模块
         # 所以先初始化每日答题部分变量
@@ -273,12 +253,28 @@ class AutoApp(Automation):
         return "".join(temp)
 
     def mute(self):
-        # print(self.driver.info)
-        self.driver.press('volume_mute')
-        # for times in range(10):
-        #     if 0 != subprocess.check_call(f'adb -s {self.app_args["udid"]} shell input keyevent 25',
+        # cmd = ''
+        # if cfg.get('emu_args', 'true_machine') == '1' or cfg.get('emu_args', 'true_machine').lower() == 'true':
+        #     return
+        # logger.info(f"[{self.app_args['username']}]\033[27;32;41m启动模拟器\033[0m")
+        # if cfg.get('emu_args', 'emu_name').lower() == 'microvirt':
+        #     cmd = 'start /b /D "' + cfg.get('emu_args', 'microvirt_path') + '" memuc sendkey -n ' + \
+        #           self.app_args['emu_name'] + ' volumedown'
+        # elif cfg.get('emu_args', 'emu_name').lower() == 'nox':
+        #     cmd = 'start /b /D "' + cfg.get('emu_args', 'nox_path') + '" NoxConsole.exe launch -name:' + \
+        #           self.app_args['emu_name']
+        # elif cfg.get('emu_args', 'emu_name').lower() == 'leidian':
+        #     cmd = 'start /b /D "' + cfg.get('emu_args', 'leidian_path') + '" dnconsole.exe --audio 0'
+        # # print(self.driver.info)
+        # # self.driver.press('volume_mute')
+        # for times in range(8):
+        #     if 0 != subprocess.check_call(cmd,
         #                                   shell=True, stdout=subprocess.PIPE):
         #         logger.info(f'音量无须调节或调节完毕。')
+        for times in range(15):
+            if 0 != subprocess.check_call(f'adb -s {self.app_args["udid"]} shell input keyevent 25',
+                                          shell=True, stdout=subprocess.PIPE):
+                logger.info(f'音量无须调节或调节完毕。')
 
     def back_to_home(self):
         try:
@@ -314,14 +310,17 @@ class AutoApp(Automation):
     def login_or_not(self):
         # com.alibaba.android.user.login.SignUpWithPwdActivity
         # time.sleep(15)
-        if self.driver(resourceId=rules['home_entry'][18:65]).exists:
-            # self.driver.xpath(rules["home_entry"])
-            logger.debug(f'不需要登录')
-            return
-        else:
-            logger.debug(self.driver.app_current)
-            logger.debug(f"非首页，先进行登录")
-            time.sleep(2)
+        while True:
+            if self.driver(resourceId=rules['home_entry'][18:65]).exists:
+                # self.driver.xpath(rules["home_entry"])
+                logger.debug(f'不需要登录')
+                return
+            else:
+                if self.driver(resourceId='cn.xuexi.android:id/user_avatar_login_tv').exists:
+                    logger.debug(self.driver.app_current)
+                    logger.debug(f"非首页，先进行登录")
+                    time.sleep(2)
+                    break
         if not self.username or not self.password:
             logger.error(f'未提供有效的username和password')
             logger.info(f'也许你可以通过下面的命令重新启动:')
@@ -850,7 +849,7 @@ class AutoApp(Automation):
                             self.app_args['testapp']:
                         # elif "开始答题" == state.text and self.app_args['testapp']:
                         logger.info(
-                            f'\033[7;41m[【专项答题】{state.text}！\033')
+                            f'\033[7;41m[【专项答题】{state.text}！\033[0m')
                         state.click()
                         time.sleep(random.uniform(1, 3))
                         self._dispatch(special_count)  # 这里直接采用每日答题
@@ -869,10 +868,14 @@ class AutoApp(Automation):
                 time.sleep(2)
             except XPathElementNotFoundError:
                 logger.info(
-                    f'\033[7;41m[{self.username}]没有可以学习的专项答题，可能所有题目组已经答完。\033')
+                    f'\033[7;41m[{self.username}]没有可以学习的专项答题，可能所有题目组已经答完。\033[0m')
                 self.safe_back('special answer->special answer list')
                 self.safe_back('special answer list -> quiz')
                 return None
+        point_xpath = '//*[@resource-id="app"]/android.view.View[7]/android.view.View[2]'
+        if self.driver.xpath(point_xpath).exists:
+            point = self.driver.xpath(point_xpath).get_text()
+            logger.info(f'\033[7;41m[{self.username}]本次专项答题得分：{point}分。\033[0m')
         self.safe_back('special answer->special answer list')
         self.safe_back('special answer list -> quiz')
 
@@ -2001,6 +2004,8 @@ class AutoApp(Automation):
         self.driver.xpath(rules['radio_entry']).click_exists(5)
         self.driver(text='听广播').click_exists(5)
         self.driver.xpath(rules['radio_play_button']).click_exists(5)
+        time.sleep(3)
+        self.mute()
         self.back_to_home()
 
     def _watch(self, video_count=None):
@@ -2149,6 +2154,11 @@ class AutoApp(Automation):
                     time.sleep(random.randint(3, 6))
                     self._dispatch(question_count)  # 这里直接采用每日答题
                     # cur_page = page
+                    point_xpath = '//*[@resource-id="app"]/android.view.View[7]' \
+                                  '/android.view.View[2]/android.view.View[1] '
+                    if self.driver.xpath(point_xpath).exists:
+                        point = self.driver.xpath(point_xpath).get_text()
+                        logger.info(f'\033[7;41m[{self.username}]本次专项答题得分：{point}分。\033[0m')
                     self.safe_back('weekly report -> weekly list')
                     self.safe_back('weekly list -> quiz')
                     return True
@@ -2292,7 +2302,7 @@ def appium_start(**args):
 
 def emu_start(**args):
     """
-    启动逍遥模拟器
+    启动模拟器
     """
     if cfg.get('emu_args', 'true_machine') == '1' or cfg.get('emu_args', 'true_machine').lower() == 'true':
         return
@@ -2384,13 +2394,13 @@ def begin_study(**args):
     # win32api.MessageBox(0, f'{app_args_list["username"]}今日学习完成！', "恭喜你学习完成", win32con.MB_OK)
 
 
-def close_emu(emu='leidian'):
+def close_emu(emu_name='leidian'):
     cmd = ''
-    if emu.upper() == 'microvirt'.upper():
+    if emu_name.upper() == 'microvirt'.upper():
         cmd = f'start /b /D "' + cfg.get('emu_args', 'microvirt_path') + '" memuc stopall'
-    elif emu.upper() == 'nox'.upper():
+    elif emu_name.upper() == 'nox'.upper():
         cmd = f'start /b /D "' + cfg.get('emu_args', 'nox_path') + '" NoxConsole.exe quitall'
-    elif emu.upper() == 'leidian'.upper():
+    elif emu_name.upper() == 'leidian'.upper():
         cmd = f'start /b /D "' + cfg.get('emu_args', 'leidian_path') + '" dnconsole.exe quitall'
     if 0 == subprocess.check_call(cmd, shell=True, stdout=open(
             '.\\logs\\' + 'emu.log', 'a'), stderr=subprocess.STDOUT):
@@ -2399,6 +2409,25 @@ def close_emu(emu='leidian'):
     else:
         logger.info(
             f'\033[27;31;46m 关闭模拟器操作失败...\033[0m')
+
+
+def mute_emu(**args):
+    """
+    静音模拟器
+    """
+    if cfg.get('emu_args', 'true_machine') == '1' or cfg.get('emu_args', 'true_machine').lower() == 'true':
+        return
+    cmd = ''
+    logger.info(f"[{args['username']}]\033[27;32;41m启动模拟器\033[0m")
+    port = str(args['port'])
+    if cfg.get('emu_args', 'emu_name').lower() == 'microvirt':
+        cmd = 'start /b /D "' + cfg.get('emu_args', 'microvirt_path') + '" MEmuConsole.exe' + \
+              ' "' + args['emu_name'] + '"'
+    elif cfg.get('emu_args', 'emu_name').lower() == 'nox':
+        cmd = 'start /b /D "' + cfg.get('emu_args', 'nox_path') + '" NoxConsole.exe launch -name:' + args['emu_name']
+    elif cfg.get('emu_args', 'emu_name').lower() == 'leidian':
+        cmd = 'start /b /D "' + cfg.get('emu_args', 'leidian_path') + '" dnconsole.exe launch --name ' + args[
+            'emu_name']
 
 
 def restart_adb_server():
@@ -2417,19 +2446,24 @@ def restart_adb_server():
                            shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     out = res.stdout.readlines()
     if len(out) > 0:
-        logger.info(f'\033[7;41m 关闭所有的adb服务！\033[0m')
+        logger.debug(f'\033[7;41m 关闭所有的adb服务！\033[0m')
         # if len(server_list) > 0:
-        subprocess.call("taskkill -F -PID adb.exe",
-                        shell=True, stderr=subprocess.STDOUT)
+        subp = subprocess.Popen("taskkill -F -PID adb.exe", shell=True,
+                                stdout=open('.\\logs\\' + 'adbconnect.log', 'a'),
+                                stderr=subprocess.STDOUT)
+        # subp.wait(15)
+        subp.communicate()
+        # subprocess.call("taskkill -F -PID adb.exe",
+        #                 shell=True, stderr=subprocess.STDOUT)
     time.sleep(1)
     if 0 == subprocess.check_call(cmd + 'start-server', shell=True, stdout=open(
             '.\\logs\\' + 'adbconnect.log', 'a'), stderr=subprocess.STDOUT):
-        logger.info(
+        logger.debug(
             f'\033[27;31;46m adb start-server成功\033[0m')
+        time.sleep(3)
     else:
         logger.info(
             f'\033[27;31;46m adb start-server失败\033[0m')
-    time.sleep(3)
 
 
 def close_port():
@@ -2471,6 +2505,7 @@ if __name__ == "__main__":
     else:
         for run_args in app_args_list:
             emu_start(**run_args)
+            time.sleep(20)
             adb_connect(**run_args)
             begin_study(**run_args)
     end_time = datetime.datetime.now()

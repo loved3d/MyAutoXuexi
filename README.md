@@ -10,6 +10,14 @@
 >####我的修改主要基于kessil的项目，修改也是延续他的思路而成。
 >####交流群 https://t.me/buxuebushuang，欢迎有兴趣的同好一起加入学习python。
 
+>## 12.21更新
+1. 修正启动以后有时候停留在首页不动的情况 
+2. 修正逍遥模拟器启动后app后，app停留在后台
+3. 增加背景广播静音
+4. 题库更新
+### <u>重要提示：推荐各位使用逍遥模拟器进行本项目学习，因为大量测试建立在该模拟器下。其他模拟器不能保证所有功能正常实现。</u>
+  
+
 >## 12.17更新
 1. 修正雷电模拟器阅读学习错误
 2. 增加多账号学习策略，现在可以选择是同时一起学（并行模式，适合配置较高的机器），或者是学完一个在学另外一个（队列模式）。
@@ -22,38 +30,24 @@
 #### 4. 模拟器设置好后，程序会自动启动模拟器，自行开始学习。多号同刷，请看后面的使用说明
 #### 5. 为满足刷星、刷题（更新答题库）或者补学等要求，各个模块可以单独测试运行，可以设置测试次数。（挑战答题通关不是梦，本人没那么无聊，没测试过50次以上）
 #### 6. 支持sqlite和mysql题库，在data目录下的数据文件已经由8000题题库，且基本经过本人几个月来不停更正错误答案，基本错误量已经非常少。
-#### 7. 为怕自己粗心，误把私人帐号密码传输出来，提供了帐号RSA加密功能（gen_key.py生成公私密钥，jiami.py对个人帐号进行加密输出密文），不想使用可以修改源码即可。  
-~~~
-   # 在config目录下有users.ini，修改为自己要刷的帐号和密码，用jiami.py生成相应密文
-   # 准备几个号同时学习需要设置对应的用户名和密码，采用了RSA 1024位加密解密  
-   # pubkey_path，prikey_path，对应公钥和私钥的路径
-   # 使用gen_key.py可以生成公钥和私钥文件，默认生成文件名为‘public.pem’和‘private.pem’  
-   # jiami.py 用来生成用户名和密码对应的RSA加密密文  
-   
-   prikey_path = d:\\rsa\\private.pem  
-   pubkey_path = d:\\rsa\\public.pem
-~~~
-~~~
-# 如果不想使用用户名加密方式，可以修改源码这段代码 
-
-'username': decrypt(cfg.get('users', f'username{i}'), cfg.get('users', 'prikey_path')),  
-'password': decrypt(cfg.get('users', f'password{i}'), cfg.get('users', 'prikey_path')),
-              
-# 改为
-
-'username': cfg.get('users', f'username{i}'),  
-'password': cfg.get('users', f'password{i}'),
-~~~             
+#### 7. 提供了帐号RSA加密功能。        
 #### 8.提供由json题库转换到mysql数据库的脚本（json_to_mysql.py），提供从<https://124731.cn/>网上提供的题库转化到本地数据库的不成熟的脚本；update_packages.py是自动升级所有本机python模块的（供“版本不是最新就不爽”强迫症患者使用）
 #### 9.程序使用的模块都是更新至最新版本，所有测试都是基于到目前为止的最新版本
+
 >## 以下为服用指南
-#### 1. 首先需要安装模拟器（逍遥、雷电、Nox三选一），并在ini文件里面设置安装目录（文件夹）信息。目录名称里面又没哟含有空格没关系。
+### 1. 本程序核心运行程序为autoxue.py，在config文件夹下的default.ini为本项目的配置文件
+### 2. 安装python，或者安装vscode、pycharm等IDE直接在里面调试运行也行 
+### 3. 安装JDK（我使用的jdk1.8.0_121）
+### 4. 安装android sdk r24.4.1
+### 5. 安装模拟器（逍遥、雷电、Nox三选一），推荐使用逍遥模拟器（本人大量测试在该模拟器下完成）。模拟器尽量设置较高的分辨率；并在default.ini文件里面设置安装目录（文件夹）信息。目录名称里面又没有含有空格没关系。
+**ini文件内相应代码如下**
 ~~~
-    注意ini文件设定项前有(;或者#)是注释行，相同的键值是N选一，选了一个注意注释掉另外的
+    注意ini文件设定项前有(;或者#)是注释行，相同的键值是N选一，选了一个注意注释掉另外的（前面加;或者#号，注意是英文符号）。
     [emu_args]
-    是否采用真机进行答题，是（1），不是（0）
+    # 是否采用真机进行答题，是（1），不是（0）
     true_machine = 0
-    Microvirt（逍遥模拟器）、雷电（leidian）和Nox（夜神模拟器）三选一
+    
+    # Microvirt（逍遥模拟器）、雷电（leidian）和Nox（夜神模拟器）三选一
     emu_name = microvirt
     ;emu_name = nox
     ;emu_name = leidian
@@ -61,19 +55,14 @@
     nox_path = D:\Program Files\Nox\bin
     leidian_path = D:\Program Files\leidian\LDPlayer4
 ~~~
-#### 2. 安装python，或者安装vscode、pycharm等IDE直接在里面调试运行也行 
-#### 3. 安装JDK（我使用的jdk1.8.0_121）
-#### 4. 安装android sdk r24.4.1
-#### 5. 由于采用的是数据库，可以考虑安装一个Navicat进行数据库管理数据。注意在ini文件里面设定你喜欢用的数据库；默认是sqlite，data目录下已有相应的题库数据库。对“答题争上游”和“双人对战”胜负情况做简单统计。
+### 6. 安装运行需要的模块，运行setup.cmd，或者直接在程序目录下运行以下命令。
 ~~~
-    注意ini文件设定项前有(;或者#)是注释行，相同的键值是N选一，选了一个注意注释掉另外的
-    # 选择数据库平台
-    [database]
-    # sqlite3数据库存储在/data文件夹下
-    data_platform = sqlite3
-    ;data_platform = mysql
+    python -m pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+    或者
+    python -m pip install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple
 ~~~
-#### 6. 模拟器设置：可以多个号，同时一起刷（因为订阅耗时间较多，有单独为各个号设置的事先翻页页数）
+### 7.账号设置：可以多个号，同时一起刷（因为订阅耗时间较多，有单独为各个号设置的事先翻页页数：subscribed_pages_1）
+**ini文件内相应代码如下**
 ~~~
 # 用户名和密码
 username1 = f6ycdByVgBkCHQwqC+qU00MzqtKtWvJDBJxg8LyY2vxC3dQ+c50xw7Fk2XiY+RIb4YnGrTFq4u+dZC5U9KA+vH40mkHOpWQnIZVSFvQse5Z0si9GilOA/9aNVjV1yz5A88/I2E/yZ0yQMpE7iiHWJPzfHB2vwKr9b0LHb0c9DAE=
@@ -86,22 +75,26 @@ emu_nox_1 = long
 # 为提高订阅效率，设置事先翻过已经订阅的页面
 # 在程序里面有提示上次翻动到第几页有订阅内容
 # 设置为0表示订阅已经全部完成了，无须在订阅（这部分会在以后版本更新为根据上次翻页情况自动设置）
-   subscribed_pages_1 = 54
-   
+subscribed_pages_1 = 54   
 ~~~
-#### 7. 安装运行需要的模块
+### 8. 由于采用的是数据库，可以考虑安装一个Navicat进行数据库管理数据。注意在ini文件里面设定你喜欢用的数据库；默认是sqlite，data目录下已有相应的题库数据库。对“答题争上游”和“双人对战”胜负情况做简单统计。
+**ini文件内相应代码如下**
 ~~~
-    python -m pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
-    或者
-    python -m pip install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/
+    注意ini文件设定项前有(;或者#)是注释行，相同的键值是N选一，选了一个注意注释掉另外的
+    # 选择数据库平台
+    [database]
+    # sqlite3数据库存储在/data文件夹下
+    data_platform = sqlite3
+    ;data_platform = mysql
 ~~~
-#### 8. APP版本版本更新到2.19以后，订阅页面变化会导致程序无法自动订阅，造成死循环。已经升级到2.19的，可以注释掉以下代码（目前是539行）
+### 9. APP版本版本更新到2.19以后，订阅页面变化会导致程序无法自动订阅，造成死循环。已经升级到2.19的，可以注释掉以下代码（目前是539行）
+**python.py文件内相应代码如下**
 ~~~
     if module_name == '订阅' and (self.subscribe not in self.run_modules) \
             and 0 != cfg.getint('users', 'subscribed_pages_' + self.app_args['id']):
         self.run_modules.append(self.subscribe)
 ~~~
-#### 9.其他无关运行的小知识
+#### 10.其他无关运行的小知识
 * **如果需要将pip源设置为国内源，阿里源、豆瓣源、网易源等**  
 在windows操作如下：  
 （1）打开文件资源管理器(文件夹地址栏中)  
@@ -115,41 +108,19 @@ index-url = https://mirrors.aliyun.com/pypi/simple/
 trusted-host = mirrors.aliyun.com
 ~~~
 
+>#常见问题
 ---
-#**上传之前的历史版本迭代情况：**
->## 12.13 更新
-1. 争上游答题效率更新，控制在20秒左右答题完成，胜率大幅度提高
-2. 修改少量bug
-
->## 11.8 重大更新
-> ####整体框架换成UIautomator2
-1. 所有代码更换，效率提高，但是多开稳定性下降
-2. 争上游答题胜率提高
-3. 多模拟器切换（目前支持逍遥、雷电、Nox三种）--本人测试大多基于逍遥模拟器。
-
->## 10.17 更新
-1. 已经基本完成强国满分的目标，修改完成争上游答题部分
-2. 修改专项答题，提供精准度，但是还是无法解决答案提示差别大的时候的精准度
-<br/>
-
-
->## 09.26 更新
-1. 完成专项答题和自动订阅模块
-2. 初步完成新上线的争上游答题和双人对战模块
-
-<br/>
-
->## 09.07 已经实现的功能
-1. 脱离批处理启动，支持同时开多个号，appium和模拟器随着需要启动相应的服务和数量，运行一次大概在45分钟
-2. 各个的用户相关信息置入到配置文件中，帐号密码等敏感信息使用了RSA加密算法方式保护
-3. 题库重新采集到了mysql数据库，实现本地题库处理（查询、更新题库）
-4. 支持单个模块单独测试运行
-5. **现支持挑战答题、每日答题、专项答题、新闻阅读、视听学习等所有学习项，可以达到57分/天。**
-
+* ### 运行python出现（NameError: name 'XXXXXXXX' is not defined）报错
+解决方法：  
+请安装python 3.7+以上版本，安装以后运行如下命令
+~~~
+pip install XXXXXXXX
+~~~  
+#### XXXXXXXX为错误提示中（NameError: name 'XXXXXXXX' is not defined）对应模块名。
 
 ---
 
-### 本自动学习脚本的缺点：对电脑配置要求较高，且安装运行环境很麻烦  
+### 本自动学习脚本的缺点：对电脑配置要求较高，且安装运行环境很麻烦，需要有少量python知识  
 
 ---
 
