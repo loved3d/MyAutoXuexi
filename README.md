@@ -40,7 +40,10 @@
 ### 3. 安装JDK（我使用的jdk1.8.0_121）
 ### 4. 安装android sdk r24.4.1
 ### 5. 安装模拟器（逍遥、雷电、Nox三选一），推荐使用逍遥模拟器（本人大量测试在该模拟器下完成）。模拟器尽量设置较高的分辨率；并在default.ini文件里面设置安装目录（文件夹）信息。目录名称里面又没有含有空格没关系。
+* 逍遥模拟器主页地址<http://www.xyaz.cn/>,下载最新版的工作室版本。安装时选默认安装位置和自定义位置都可以，但是文件夹不要含中文，记住安装位置，到时候配置ini文件会用到。新建模拟器时，选“安卓模拟器7.1（正式版）”，目前尚未测试安卓模拟器7.1（64位版） 
+
 **ini文件内相应代码如下**
+编辑ini文件不要使用记事本进行编辑，没有合适的ide编程软件，可以安装vs code或者装个小巧的编辑器notepad++
 ~~~
     注意ini文件设定项前有(;或者#)是注释行，相同的键值是N选一，选了一个注意注释掉另外的（前面加;或者#号，注意是英文符号）。
     [emu_args]
@@ -55,7 +58,7 @@
     nox_path = D:\Program Files\Nox\bin
     leidian_path = D:\Program Files\leidian\LDPlayer4
 ~~~
-### 6. 安装运行需要的模块，运行setup.cmd，或者直接在程序目录下运行以下命令。
+### 6. 安装运行需要的模块，运行setup.cmd（这个是构建运行环境及安装运行所需要的python包用的），或者直接在程序目录下运行以下命令。
 ~~~
     python -m pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
     或者
@@ -63,10 +66,36 @@
 ~~~
 ### 7.账号设置：可以多个号，同时一起刷（因为订阅耗时间较多，有单独为各个号设置的事先翻页页数：subscribed_pages_1）
 **ini文件内相应代码如下**
+强烈建议小白按照下面提示修改（autoxue.py）里面的代码
+~~~
+[users]
+
+# 如果不想使用用户名加密方式，可以修改源码这段代码
+            'username': decrypt(cfg.get('users', f'username{i}'), cfg.get('users', 'prikey_path')),
+            'password': decrypt(cfg.get('users', f'password{i}'), cfg.get('users', 'prikey_path')),
+# 改为
+           'username': cfg.get('users', f'username{i}'),
+           'password': cfg.get('users', f'password{i}'),
+~~~
+
+使用逍遥模拟器，不要修改emu_mv_1 = MEmu
+第二个帐号也要按照ini原来的配置：emu_mv_2 = MEmu_1，第三个为：emu_mv_2 = MEmu_2，以此类推...  
+
+如果是使用其他模拟器的话，按照ini文件里面的提示更改  
+注意username1、password1等英文后面的数字，用来区别1号用户、2号用户等等，请做相应的配置
+这些数字关系到后面的核心运行配置（study_users = 1），如果是三个号一起学就是（study_users = 1 2 3）  
+
+~~~
+# 选择需要学习的用户
+# 数字对应 username1 里面的数字，用, ，（中英文逗号、分号、顿号） ; ； 、和空格混合分隔都可以，
+# 注意不要在最前和最后留‘，’，不然有可能无法正确执行
+study_users = 1
+~~~
+总结以上，不需要加密方式保护私人信息的，配置文件类似下面的样子：  
 ~~~
 # 用户名和密码
-username1 = f6ycdByVgBkCHQwqC+qU00MzqtKtWvJDBJxg8LyY2vxC3dQ+c50xw7Fk2XiY+RIb4YnGrTFq4u+dZC5U9KA+vH40mkHOpWQnIZVSFvQse5Z0si9GilOA/9aNVjV1yz5A88/I2E/yZ0yQMpE7iiHWJPzfHB2vwKr9b0LHb0c9DAE=
-password1 = j9zzXRpPOy6SIfTLijMXCldNEkmlR+H1jxXLjIo1preGIs26QyFPKZ+/gk5hktnoaT0n4jDJGAsi08s7swIv7ucvSXqBkAQt0WYqn7seIZ13Ow79f0kx6MalCRX3/AKtrOhBCcHPtyDbQbvhMWyTrS1PxEIOibz7tONogGDAgzw=
+username1 = 13900000001
+password1 = 123456
 # 多开的话，分两种情况：逍遥模拟器为第一类，雷电和Nox为第二类情况。
 # 第一类情况，因为逍遥模拟器是固定名字（'MEmu', 'MEmu_1', 'MEmu_2', 'MEmu_3',...）的，根据实际运行个数修改为emu_mv_1=MEmu, emu_mv_2=MEmu_1,emu_mv_3=MEmu_2等名称。可以参考ini里面
 emu_mv_1 = MEmu
@@ -75,10 +104,14 @@ emu_nox_1 = long
 # 为提高订阅效率，设置事先翻过已经订阅的页面
 # 在程序里面有提示上次翻动到第几页有订阅内容
 # 设置为0表示订阅已经全部完成了，无须在订阅（这部分会在以后版本更新为根据上次翻页情况自动设置）
-subscribed_pages_1 = 54   
+subscribed_pages_1 = 54
+
+study_users = 1 
 ~~~
 ### 8. 由于采用的是数据库，可以考虑安装一个Navicat进行数据库管理数据。注意在ini文件里面设定你喜欢用的数据库；默认是sqlite，data目录下已有相应的题库数据库。对“答题争上游”和“双人对战”胜负情况做简单统计。
-**ini文件内相应代码如下**
+**ini文件内相应代码如下**  
+
+不打算采用mysql数据或者小白，就不要更改这部分内容。如果是使用mysql数据库，请按照提供的data文件夹下的xuexi.db，自行脑补。
 ~~~
     注意ini文件设定项前有(;或者#)是注释行，相同的键值是N选一，选了一个注意注释掉另外的
     # 选择数据库平台
@@ -94,9 +127,11 @@ subscribed_pages_1 = 54
             and 0 != cfg.getint('users', 'subscribed_pages_' + self.app_args['id']):
         self.run_modules.append(self.subscribe)
 ~~~
-#### 10.其他无关运行的小知识
-* **如果需要将pip源设置为国内源，阿里源、豆瓣源、网易源等**  
-在windows操作如下：  
+### 10. 以上工作完成后，在命令提示符下，在程序目录下，运行“python autoxue.py”
+### 11.其他小技巧
+* #### 运行setup.cmd,里面会安装运行程序所需要的包，下载是需要从外网更新的，会比较慢。按以下方法会比较快。
+在windows操作如下：**  
+需要将pip源设置为国内源，阿里源、豆瓣源、网易源等  
 （1）打开文件资源管理器(文件夹地址栏中)  
 （2）地址栏上面输入 %appdata%  
 （3）在这里面新建一个文件夹 pip  

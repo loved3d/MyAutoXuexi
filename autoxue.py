@@ -219,7 +219,6 @@ class AutoApp(Automation):
         self.has_bgm = cfg.get('prefers', 'radio_switch')
         self.score = defaultdict(tuple)
         self.driver.app_start(cfg.get('capability', 'apppackage'), cfg.get('capability', 'appactivity'), wait=True)
-        # self.mute()
         # self.driver.wait_activity('com.alibaba.android.rimet.biz.home.activity.HomeActivity', 15)
         self.login_or_not()
         # 因为挑战答题、每周答题、专项答题都用到每日答题模块
@@ -253,24 +252,6 @@ class AutoApp(Automation):
         return "".join(temp)
 
     def mute(self):
-        # cmd = ''
-        # if cfg.get('emu_args', 'true_machine') == '1' or cfg.get('emu_args', 'true_machine').lower() == 'true':
-        #     return
-        # logger.info(f"[{self.app_args['username']}]\033[27;32;41m启动模拟器\033[0m")
-        # if cfg.get('emu_args', 'emu_name').lower() == 'microvirt':
-        #     cmd = 'start /b /D "' + cfg.get('emu_args', 'microvirt_path') + '" memuc sendkey -n ' + \
-        #           self.app_args['emu_name'] + ' volumedown'
-        # elif cfg.get('emu_args', 'emu_name').lower() == 'nox':
-        #     cmd = 'start /b /D "' + cfg.get('emu_args', 'nox_path') + '" NoxConsole.exe launch -name:' + \
-        #           self.app_args['emu_name']
-        # elif cfg.get('emu_args', 'emu_name').lower() == 'leidian':
-        #     cmd = 'start /b /D "' + cfg.get('emu_args', 'leidian_path') + '" dnconsole.exe --audio 0'
-        # # print(self.driver.info)
-        # # self.driver.press('volume_mute')
-        # for times in range(8):
-        #     if 0 != subprocess.check_call(cmd,
-        #                                   shell=True, stdout=subprocess.PIPE):
-        #         logger.info(f'音量无须调节或调节完毕。')
         for times in range(15):
             if 0 != subprocess.check_call(f'adb -s {self.app_args["udid"]} shell input keyevent 25',
                                           shell=True, stdout=subprocess.PIPE):
@@ -507,9 +488,9 @@ class AutoApp(Automation):
         for day in self.workdays:
             warning = warning + week_str[int(day) - 1] + '、'
         if warning is not None:
-            logger.debug(f'[{self.username}]\033[41;4m 你设置了在{warning}进行答题。\033[0m')
+            logger.info(f'[{self.username}]\033[41;4m 你设置了在{warning}进行答题。\033[0m')
         if str(day_of_week) in self.workdays:
-            logger.debug(f'[{self.username}]\033[41;4m 今日不是答题日。\033[0m')
+            logger.info(f'[{self.username}]\033[41;4m 今日是答题日。\033[0m')
             return True
         else:
             logger.info(f'[{self.username}]\033[41;4m 今日不是答题日，所以不会进行【每周答题】和【专项答题】。\033[0m')
@@ -816,7 +797,8 @@ class AutoApp(Automation):
         """
         # titles = self.wait.until(
         #     EC.presence_of_all_elements_located((By.XPATH, rules["special_titles"])))
-        is_end = True
+        is_end = False
+        states = list()
         try:
             page = cfg.getint('prefers', 'special_answer_begin_page')
         except (NoOptionError, NoSectionError):
@@ -825,8 +807,9 @@ class AutoApp(Automation):
             special_count = cfg.getint('prefers', 'special_count_each_group')
         except (NoOptionError, NoSectionError):
             special_count = 10
-        while is_end and page > 0:
+        while not is_end and page > 0:
             try:
+                states.clear()
                 states = self.driver.xpath(rules["special_answer_entry"]).all()
                 for state in states:
                     # if not first and title.location_in_view["y"]>0:
@@ -843,9 +826,9 @@ class AutoApp(Automation):
                         time.sleep(random.uniform(1, 3))
                         self._dispatch(special_count)  # 这里直接采用每日答题
                         # self.safe_back('quit special answer')
-                        is_end = False
+                        is_end = True
                         break
-                    elif ("继续答题" == state.text or "已满分" == state.text) and \
+                    elif ("继续答题" == state.text or "已满分" == state.text or "重新答题" == state.text) and \
                             self.app_args['testapp']:
                         # elif "开始答题" == state.text and self.app_args['testapp']:
                         logger.info(
@@ -853,12 +836,14 @@ class AutoApp(Automation):
                         state.click()
                         time.sleep(random.uniform(1, 3))
                         self._dispatch(special_count)  # 这里直接采用每日答题
-                        # self.safe_back('quit special answer')
-                        is_end = False
-                        break
+                        time.sleep(3)
+                        self.safe_back('quit special answer')
+                        time.sleep(3)
+                        is_end = True
+                        # break
                     elif "已过期" == state.text:
                         # self.safe_back('quit special answer')
-                        is_end = False
+                        is_end = True
                         # 如果发现已过期，说明以下的题组已经失效，翻页也没有用了，直接退出
                         page = 0
                         break
@@ -1453,7 +1438,6 @@ class AutoApp(Automation):
                     spaces.append(_spaces)
                 logger.debug(
                     f'[填空题] {content} [{" ".join([str(x) for x in spaces])}]')
-
         blank_edits = self.driver.xpath(rules["daily_blank_edits"]).all()
         # blank_edits = self.find_elements(rules["daily_blank_edits"])
         length_of_edits = len(blank_edits)
@@ -1605,22 +1589,25 @@ class AutoApp(Automation):
         根据题目类型分配到相应的处理模块
         """
         for num in range(count_of_each_group):
+            print(f'第{num+1}题')
             category = None
             logger.debug(
                 f'[{self.username}]每日答题 第 {count_of_each_group - 1 - num} 题')
             try:
                 category = self.driver.xpath(rules["daily_category"]).wait(10).text
-            except XPathElementNotFoundError:
-                logger.error(f'[{self.username}]无法获取题目类型')
-            if "填空题" == category[0:3]:
-                self._blank()
-            elif "单选题" == category[0:3]:
-                self._radio()
-            elif "多选题" == category[0:3]:
-                self._check()
-            else:
-                logger.error(f"未知的题目类型: {category}")
-            time.sleep(2)
+                if "填空题" == category[0:3]:
+                    self._blank()
+                elif "单选题" == category[0:3]:
+                    self._radio()
+                elif "多选题" == category[0:3]:
+                    self._check()
+                else:
+                    logger.error(f"未知的题目类型: {category}")
+                time.sleep(2)
+            except (AttributeError, XPathElementNotFoundError) as msg:
+                logger.error(f'[{self.username}]{msg}无法获取题目类型')
+                if self.driver(text="本次作答分数").exists:
+                    return
 
     def _daily(self, num):
         """
@@ -2158,7 +2145,7 @@ class AutoApp(Automation):
                                   '/android.view.View[2]/android.view.View[1] '
                     if self.driver.xpath(point_xpath).exists:
                         point = self.driver.xpath(point_xpath).get_text()
-                        logger.info(f'\033[7;41m[{self.username}]本次专项答题得分：{point}分。\033[0m')
+                        logger.info(f'\033[7;41m[{self.username}]本次本周答题得分：{point}分。\033[0m')
                     self.safe_back('weekly report -> weekly list')
                     self.safe_back('weekly list -> quiz')
                     return True
