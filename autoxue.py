@@ -2278,13 +2278,18 @@ for i in user_list:
         udid = f'127.0.0.1:{5555 + 2 * (int(i) - 1)}'
     if cfg.get('emu_args', 'true_machine') == '1' or cfg.get('emu_args', 'true_machine').lower() == 'true':
         udid = 'xxxxxx'
+
+    if len(cfg.get('users', f'username{i}')) > 11:
+        username = decrypt(cfg.get('users', f'username{i}'), cfg.get('users', 'prikey_path'))
+        password = decrypt(cfg.get('users', f'password{i}'), cfg.get('users', 'prikey_path'))
+    else:
+        username = cfg.get('users', f'username{i}')
+        password = cfg.get('users', f'password{i}')
     app_args_list.append(
         {
             'id': i,
-            'username': decrypt(cfg.get('users', f'username{i}'), cfg.get('users', 'prikey_path')),
-            'password': decrypt(cfg.get('users', f'password{i}'), cfg.get('users', 'prikey_path')),
-            # 'username': cfg.get('users', f'username{i}'),
-            # 'password': cfg.get('users', f'password{i}'),
+            'username': username,
+            'password': password,
             'emu_name': emu_name,
             'udid': udid,
             'host': '127.0.0.1',
