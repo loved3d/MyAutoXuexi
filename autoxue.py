@@ -58,20 +58,20 @@ class Automation:
         }
         self.app_args = appargs
         self.run_modules = []
-        self.desired_caps = {
-            "platformName": caps["platformname"],
-            "platformVersion": caps["platformversion"],
-            "automationName": caps["automationname"],
-            "unicodeKeyboard": caps["unicodekeyboard"],
-            "resetKeyboard": caps["resetkeyboard"],
-            "noReset": caps["noreset"],
-            'newCommandTimeout': 800,
-            "deviceName": caps["devicename"],
-            "udid": self.app_args['udid'],
-            "systemPort": self.app_args['systemPort'],
-            "appPackage": caps["apppackage"],
-            "appActivity": caps["appactivity"]
-        }
+        # self.desired_caps = {
+        #     "platformName": caps["platformname"],
+        #     "platformVersion": caps["platformversion"],
+        #     "automationName": caps["automationname"],
+        #     "unicodeKeyboard": caps["unicodekeyboard"],
+        #     "resetKeyboard": caps["resetkeyboard"],
+        #     "noReset": caps["noreset"],
+        #     'newCommandTimeout': 800,
+        #     "deviceName": caps["devicename"],
+        #     "udid": self.app_args['udid'],
+        #     "systemPort": self.app_args['systemPort'],
+        #     "appPackage": caps["apppackage"],
+        #     "appActivity": caps["appactivity"]
+        # }
         # logger.info('打开 appium 服务,正在配置...')
         # self.appium_start()
         logger.info(f'[{self.app_args["username"]}]启动 connect 服务,正在配置...')
@@ -98,7 +98,8 @@ class Automation:
         cmd = r'adb devices'  # % apk_file
         subps = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
         subps.wait()
-        device_list = subps.stdout.readlines()  # out = pr.stdout.read().decode("UTF-8")
+        # out = pr.stdout.read().decode("UTF-8")
+        device_list = subps.stdout.readlines()
         devices = []
         for device_str in device_list[1:-1]:
             device = str(device_str).split("\\")[0].split("'")[-1]
@@ -173,10 +174,10 @@ class Automation:
             logger.info(f'[{self.app_args["username"]}]已经到了主页面，再返回就退出APP啦')
             return
 
-    def safe_click(self, ele: str, timeout=5, delay=1):
+    def safe_click(self, ele: str, delay=3):
         logger.debug(f'safe click {ele}')
         try:
-            if self.driver.xpath(ele).click_exists(timeout):
+            if self.driver.xpath(ele).click_exists(5):
                 time.sleep(delay)
                 return True
         except XPathElementNotFoundError:
@@ -218,7 +219,8 @@ class AutoApp(Automation):
         self.video_count = 5
         self.has_bgm = cfg.get('prefers', 'radio_switch')
         self.score = defaultdict(tuple)
-        self.driver.app_start(cfg.get('capability', 'apppackage'), cfg.get('capability', 'appactivity'), wait=True)
+        self.driver.app_start(cfg.get('capability', 'apppackage'), cfg.get(
+            'capability', 'appactivity'), wait=True)
         # self.driver.wait_activity('com.alibaba.android.rimet.biz.home.activity.HomeActivity', 15)
         self.login_or_not()
         # 因为挑战答题、每周答题、专项答题都用到每日答题模块
@@ -257,11 +259,12 @@ class AutoApp(Automation):
                                           shell=True, stdout=subprocess.PIPE):
                 logger.info(f'音量无须调节或调节完毕。')
 
-    def back_to_home(self):
+    def back_to_home(self, delay=0.5):
         try:
             while not self.driver.xpath(rules['home_entry']).wait(0.5):
                 self.driver.press('back')
                 self.driver(text='退出').click_exists(0.5)
+                time.sleep(0.5)
             self.home_button_click()
             return True
         except Exception as msg:
@@ -281,11 +284,11 @@ class AutoApp(Automation):
         time.sleep(1)
         return True
 
-    def home_button_click(self):
+    def home_button_click(self, delay=0.5):
         try:
             self.driver.xpath(rules['home_entry']).click_exists(1)
         except (XPathElementNotFoundError, UiObjectNotFoundError):
-            time.sleep(1)
+            time.sleep(delay)
             self.back_to_home()
 
     def login_or_not(self):
@@ -296,12 +299,11 @@ class AutoApp(Automation):
                 # self.driver.xpath(rules["home_entry"])
                 logger.debug(f'不需要登录')
                 return
-            else:
-                if self.driver(resourceId='cn.xuexi.android:id/user_avatar_login_tv').exists:
-                    logger.debug(self.driver.app_current)
-                    logger.debug(f"非首页，先进行登录")
-                    time.sleep(2)
-                    break
+            elif self.driver(resourceId='cn.xuexi.android:id/user_avatar_login_tv').exists:
+                logger.debug(self.driver.app_current)
+                logger.debug(f"非首页，先进行登录")
+                time.sleep(2)
+                break
         if not self.username or not self.password:
             logger.error(f'未提供有效的username和password')
             logger.info(f'也许你可以通过下面的命令重新启动:')
@@ -314,6 +316,7 @@ class AutoApp(Automation):
                     username = self.driver.xpath(rules['login_username'])
                     password = self.driver.xpath(rules['login_password'])
                     username.set_text(self.username)
+                    time.sleep(3)
                     password.set_text(self.password)
                     break
             except XPathElementNotFoundError:
@@ -462,7 +465,8 @@ class AutoApp(Automation):
         self.driver.xpath(rules['score_remind']).click_exists(2)
         while True:
             try:
-                total_score = self.driver.xpath(rules["total_score"]).wait(5).text
+                total_score = self.driver.xpath(
+                    rules["total_score"]).wait(5).text
                 if total_score == '今日已累积 --积分':
                     continue
                 logger.info(f'[{self.username}]\033[1;31;43m【{total_score}】')
@@ -475,10 +479,10 @@ class AutoApp(Automation):
             logger.debug("无需自动注销账号")
             return
         self.back_to_home()
-        self.safe_click(rules["mine_entry"], 3)
-        self.safe_click(rules["setting_submit"], 3)
-        self.safe_click(rules["logout_submit"], 3)
-        self.safe_click(rules["logout_confirm"], 3)
+        self.safe_click(rules["mine_entry"])
+        self.safe_click(rules["setting_submit"])
+        self.safe_click(rules["logout_submit"])
+        self.safe_click(rules["logout_confirm"])
         logger.info("已注销")
 
     def workday_warning(self):
@@ -488,12 +492,14 @@ class AutoApp(Automation):
         for day in self.workdays:
             warning = warning + week_str[int(day) - 1] + '、'
         if warning is not None:
-            logger.info(f'[{self.username}]\033[41;4m 你设置了在{warning}进行答题。\033[0m')
+            logger.info(
+                f'[{self.username}]\033[41;4m 你设置了在{warning}进行答题。\033[0m')
         if str(day_of_week) in self.workdays:
             logger.info(f'[{self.username}]\033[41;4m 今日是答题日。\033[0m')
             return True
         else:
-            logger.info(f'[{self.username}]\033[41;4m 今日不是答题日，所以不会进行【每周答题】和【专项答题】。\033[0m')
+            logger.info(
+                f'[{self.username}]\033[41;4m 今日不是答题日，所以不会进行【每周答题】和【专项答题】。\033[0m')
             return False
 
     def back_to_answer(self, item_name):
@@ -531,7 +537,8 @@ class AutoApp(Automation):
         self.driver.xpath(rules['score_remind']).click_exists(2)
         while True:
             try:
-                total_score = self.driver.xpath(rules["total_score"]).wait(5).text
+                total_score = self.driver.xpath(
+                    rules["total_score"]).wait(5).text
                 if total_score == '今日已累积 --积分':
                     continue
                 logger.info(f'[{self.username}]\033[1;31;43m【{total_score}】')
@@ -731,13 +738,15 @@ class AutoApp(Automation):
             return
         for num in range(page):
             self.swipe_up()
-        sub_cat = re.split(r'[,，;；、/.\s]', cfg.get("prefers", "subscribed_category"))
+        sub_cat = re.split(
+            r'[,，;；、/.\s]', cfg.get("prefers", "subscribed_category"))
         while self.subscribe_times < 2:
             # subscribe_titles = self.wait.until(EC.presence_of_all_elements_located(
             #     (By.XPATH, rules["subscribe_title"])))
             for cat in sub_cat:
                 self.driver(text=cat).click_exists(3)
-                subscribe_buttons = self.driver.xpath(rules["subscribe_subs_buttons"]).all()
+                subscribe_buttons = self.driver.xpath(
+                    rules["subscribe_subs_buttons"]).all()
                 for subs_button in subscribe_buttons:
                     if subs_button.attrib["content-desc"] == '订阅':
                         subs_button.click()
@@ -754,7 +763,8 @@ class AutoApp(Automation):
                 page += 1
                 try:
                     if self.driver.xpath(rules["subscribe_list_endline"]).exists:
-                        subscribe_buttons = self.driver.xpath(rules["subscribe_subs_buttons"]).all()
+                        subscribe_buttons = self.driver.xpath(
+                            rules["subscribe_subs_buttons"]).all()
                         for subs_button in subscribe_buttons:
                             if subs_button.attrib["content-desc"] == '订阅':
                                 subs_button.click()
@@ -860,7 +870,8 @@ class AutoApp(Automation):
         point_xpath = '//*[@resource-id="app"]/android.view.View[7]/android.view.View[2]'
         if self.driver.xpath(point_xpath).exists:
             point = self.driver.xpath(point_xpath).get_text()
-            logger.info(f'\033[7;41m[{self.username}]本次专项答题得分：{point}分。\033[0m')
+            logger.info(
+                f'\033[7;41m[{self.username}]本次专项答题得分：{point}分。\033[0m')
         self.safe_back('special answer->special answer list')
         self.safe_back('special answer list -> quiz')
 
@@ -886,7 +897,8 @@ class AutoApp(Automation):
                 self.safe_click(rules["quiz_entry"])
                 # 更新后会出现一个提示窗口，需要确定关闭掉
                 try:
-                    self.driver.xpath(rules['quiz_updateinfo']).click_exists(0.5)
+                    self.driver.xpath(
+                        rules['quiz_updateinfo']).click_exists(0.5)
                 except (XPathElementNotFoundError, XPathElementNotFoundError):
                     pass
                 # 翻过新更新的提示页面（三个按钮的xpath一样的）
@@ -910,7 +922,8 @@ class AutoApp(Automation):
                 u'\u3000', u' ').replace(u'\xa0', u' ').strip()
             content = ' '.join(content.split())
         if options is not None:
-            quiz_option = [re.match(r'.*?\.(.*)', x).group(1).strip() for x in options]
+            quiz_option = [re.match(r'.*?\.(.*)', x).group(1).strip()
+                           for x in options]
         letters = 'AB'
         answer = ''
         self.bank, result_count = self.query.get({
@@ -973,7 +986,8 @@ class AutoApp(Automation):
         quiz_num = 1
         while quiz_num < 6:
             try:
-                content = self.driver(textStartsWith=f'{quiz_num}. ').get_text(10)
+                content = self.driver(
+                    textStartsWith=f'{quiz_num}. ').get_text(10)
                 if content is None:
                     if self.driver(text="正确数/总题数").exists:
                         break
@@ -982,7 +996,8 @@ class AutoApp(Automation):
                 answer, result_count = self._simple_verify(content, options)
                 if result_count == 1:
                     choose_index = ord(answer) - 65
-                    x, y = self.driver(className='android.widget.RadioButton')[choose_index].center()
+                    x, y = self.driver(className='android.widget.RadioButton')[
+                        choose_index].center()
                     # time.sleep(random.uniform(0.01, 0))
                     for _ in range(5):
                         self.driver.click(x, y)
@@ -993,9 +1008,11 @@ class AutoApp(Automation):
                     quiz_num += 1
                     logger.info(f'\033[7;41m 【答案】{answer}\033[0m')
                 else:
-                    option_elements = self.driver.xpath(rules["who_first_options"]).all()
+                    option_elements = self.driver.xpath(
+                        rules["who_first_options"]).all()
                     options = [x.text for x in option_elements]
-                    answer, result_count = self._simple_verify(content, options)
+                    answer, result_count = self._simple_verify(
+                        content, options)
                     choose_index = ord(answer) - 65
                     # self.driver(className='android.widget.RadioButton')[choose_index].click()
                     x, y = option_elements[choose_index].center()
@@ -1033,14 +1050,14 @@ class AutoApp(Automation):
             else:
                 run_times = cfg.getint('prefers', 'who_first_times') - 1
         self._who_first_init()
-        self.safe_click(rules["mine_entry"], 15)
+        self.safe_click(rules["mine_entry"])
         # self.driver.xpath(rules["mine_entry"])
-        self.safe_click(rules["quiz_entry"], 15)
+        self.safe_click(rules["quiz_entry"])
         # 更新后会出现一个提示窗口，需要确定关闭掉
         self.driver.xpath(rules['quiz_updateinfo']).click_exists(2)
         # 翻过新更新的提示页面（三个按钮的xpath一样的）
         self.quiz_entry_warning()
-        self.safe_click(rules["who_first_entry"], 15)
+        self.safe_click(rules["who_first_entry"])
         for num in range(run_times):
             time.sleep(random.uniform(0.75, 1.15))
             logger.info(
@@ -1048,7 +1065,8 @@ class AutoApp(Automation):
             self.safe_click(rules["who_first_begin"])
             try:
                 if self.driver.xpath(rules['who_first_times_exceeded']).exists:
-                    self.driver.xpath(rules['who_first_know']).click_exists(0.5)
+                    self.driver.xpath(
+                        rules['who_first_know']).click_exists(0.5)
                     self.who_first_finished = True
                     logger.info(f'\033[7;30;43m【争上游答题】已超过今日对战次数，请明日再来。\033[0m')
                     win_times, loss_times = self.query.update_answer_record(
@@ -1058,7 +1076,8 @@ class AutoApp(Automation):
                     self.back_to_home()
                     return
                 else:
-                    logger.info(f'\033[7;30;43m[{self.username}]进入【争上游答题】\033[0m')
+                    logger.info(
+                        f'\033[7;30;43m[{self.username}]进入【争上游答题】\033[0m')
                     self._who_first('争上游答题')
                     if self.driver.xpath(rules['who_first_no_point']).exists and not self.app_args['testapp']:
                         self.who_first_finished = True
@@ -1091,8 +1110,10 @@ class AutoApp(Automation):
         wf_end_time = datetime.datetime.now()
         while True:
             try:
-                content = self.driver.xpath(rules["who_first_content"]).wait(10).text
-                opt_eles = self.driver.xpath('//android.widget.RadioButton').all()
+                content = self.driver.xpath(
+                    rules["who_first_content"]).wait(10).text
+                opt_eles = self.driver.xpath(
+                    '//android.widget.RadioButton').all()
                 options = None
                 answer, result_count = self._simple_verify(content, options)
                 if result_count == 1:
@@ -1108,9 +1129,11 @@ class AutoApp(Automation):
                         time.sleep(0.01)
                         # self.driver.click(x, y)
                 else:
-                    option_elements = self.driver.xpath(rules["who_first_options"]).all()
+                    option_elements = self.driver.xpath(
+                        rules["who_first_options"]).all()
                     options = [x.text for x in option_elements]
-                    answer, result_count = self._simple_verify(content, options)
+                    answer, result_count = self._simple_verify(
+                        content, options)
                     logger.info(f'\033[7;41m 【2.答案】{answer}\033[0m')
                     choose_index = ord(answer[0]) - 65
                     # answer_text = options[choose_index]
@@ -1218,8 +1241,10 @@ class AutoApp(Automation):
         total = num
         while num > -1:
             try:
-                content = self.driver.xpath(rules['challenge_content']).get_text()
-                option_elements = self.driver.xpath(rules['challenge_options']).all()
+                content = self.driver.xpath(
+                    rules['challenge_content']).get_text()
+                option_elements = self.driver.xpath(
+                    rules['challenge_options']).all()
                 options = [x.text for x in option_elements]
                 length_of_options = len(options)
                 logger.info(
@@ -1228,7 +1253,8 @@ class AutoApp(Automation):
                     f'[{self.username}]共{self.challenge_count}题，第<{total - num + 1}>题，答案是：{options}')
                 answer = self._verify(
                     category='单选题', content=content, options=options)
-                delay_time = random.randint(self.challenge_delay_bot, self.challenge_delay_top)
+                delay_time = random.randint(
+                    self.challenge_delay_bot, self.challenge_delay_top)
                 if 0 == num:
                     offset = random.randint(1, length_of_options)
                     logger.info(
@@ -1413,7 +1439,8 @@ class AutoApp(Automation):
                 if "" != content_text:
                     content += content_text
                 else:
-                    length_of_spaces = len(self.driver.xpath('//android.widget.EditText/following-sibling::*').all())
+                    length_of_spaces = len(self.driver.xpath(
+                        '//android.widget.EditText/following-sibling::*').all())
                     # print(f'空格数 {length_of_spaces}')
                     spaces.append(length_of_spaces)
                     content += " " * length_of_spaces
@@ -1448,19 +1475,22 @@ class AutoApp(Automation):
         if not answer:
             # words = (''.join(random.sample(string.ascii_letters + string.digits, 8))
             #          for num in range(length_of_edits))
-            words = (''.join(random.sample(string.ascii_letters + string.digits, length_of_edits)))
+            words = (''.join(random.sample(
+                string.ascii_letters + string.digits, length_of_edits)))
         else:
             words = answer.split(" ")
         logger.debug(f'提交答案 {words}')
         logger.debug(f'[{self.username}]\033[7;41m 填空题答案是：{words}\033[0m')
         for k, v in zip(range(length_of_edits), words):
-            self.driver(className='android.widget.EditText')[(k - 1)].set_text(v)
+            self.driver(className='android.widget.EditText')[
+                (k - 1)].set_text(v)
             time.sleep(1)
         self._submit()
         time.sleep(1)
         try:
             if self.driver.xpath(rules["daily_wrong_or_not"]).exists:
-                right_answer = self.driver.xpath(rules["daily_answer"]).get_text()
+                right_answer = self.driver.xpath(
+                    rules["daily_answer"]).get_text()
                 answer = re.sub(r'正确答案： ', '', right_answer)
                 logger.info(f"答案 {answer}")
                 notes = self.driver.xpath(rules["daily_notes"]).get_text()
@@ -1510,7 +1540,8 @@ class AutoApp(Automation):
         self._submit()
         try:
             if self.driver.xpath(rules["daily_wrong_or_not"]).exists:
-                right_answer = self.driver.xpath(rules["daily_answer"]).get_text()
+                right_answer = self.driver.xpath(
+                    rules["daily_answer"]).get_text()
                 right_answer = re.sub(r'正确答案： ', '', right_answer)
                 logger.info(f"答案 {right_answer}")
                 self._submit(2)
@@ -1557,7 +1588,8 @@ class AutoApp(Automation):
         self._submit()
         try:
             if self.driver.xpath(rules["daily_wrong_or_not"]).exists:
-                right_answer = self.driver.xpath(rules["daily_answer"]).wait(3).text
+                right_answer = self.driver.xpath(
+                    rules["daily_answer"]).wait(3).text
                 right_answer = re.sub(r'正确答案： ', '', right_answer)
                 logger.info(f"答案 {right_answer}")
                 # notes = self.driver.xpath(rules["daily_notes"]).get_attribute("name")
@@ -1589,12 +1621,13 @@ class AutoApp(Automation):
         根据题目类型分配到相应的处理模块
         """
         for num in range(count_of_each_group):
-            print(f'第{num+1}题')
+            print(f'第{num + 1}题')
             category = None
             logger.debug(
                 f'[{self.username}]每日答题 第 {count_of_each_group - 1 - num} 题')
             try:
-                category = self.driver.xpath(rules["daily_category"]).wait(10).text
+                category = self.driver.xpath(
+                    rules["daily_category"]).wait(10).text
                 if "填空题" == category[0:3]:
                     self._blank()
                 elif "单选题" == category[0:3]:
@@ -1621,10 +1654,12 @@ class AutoApp(Automation):
             # if self.driver.xpath('//*[@text="book@2x.432e6b57"]').exists:
             #     logger.info(f"今日答题已完成，返回")
             try:
-                accuracy_text = self.driver.xpath(rules["daily_accuracy"]).wait(10).text
+                accuracy_text = self.driver.xpath(
+                    rules["daily_accuracy"]).wait(10).text
                 if accuracy_text == "正确率：100%":
                     break
-                delay = random.randint(self.delay_group_bot, self.delay_group_top)
+                delay = random.randint(
+                    self.delay_group_bot, self.delay_group_top)
                 logger.info(f'每日答题未完成 {delay} 秒后再来一组')
                 time.sleep(delay)
                 self.safe_click(rules['daily_again'])
@@ -1678,6 +1713,9 @@ class AutoApp(Automation):
             cfg.getint('prefers', 'article_count_min'),
             cfg.getint('prefers', 'article_count_max'))
         self.read_delay = self.read_time // self.read_count
+        if self.app_args['testapp']:
+            self.video_count = cfg.getint("test", "app_watch")
+            self.read_delay = cfg.getint("test", "test_delay")
         # 2020.9 月更新后，计分调整，学习时长减少
         # self.read_time = 720 原先是720
         # self.volume_title = cfg.get("prefers", "article_volume_title")
@@ -1685,11 +1723,13 @@ class AutoApp(Automation):
         self.titles = list()
         self.volume_title = random.choice(
             re.split(r'[,，;；、/.\s]', cfg.get("prefers", "article_volume_title")))
-        logger.info(f'准备进入[{self.username}]\033[7;41m 【{self.volume_title}】进行学习\033[0m')
+        logger.info(
+            f'准备进入[{self.username}]\033[7;41m 【{self.volume_title}】进行学习\033[0m')
         if self.app_args['testapp']:
             self.read_count = cfg.getint('test', 'app_read')
-            self.star_share_comments_count = cfg.getint('prefers', 'star_share_comments_count')
-            self.read_delay = 30
+            self.star_share_comments_count = cfg.getint(
+                'prefers', 'star_share_comments_count')
+            self.read_delay = cfg.getint("test", "test_delay")
             return
         g, t = self.score["我要选读文章"]
         if t == g:
@@ -1783,9 +1823,6 @@ class AutoApp(Automation):
                 logger.info(f'[{self.username}]<{num + 1}> {title}')
                 article_delay = random.randint(
                     self.read_delay, self.read_delay + min(10, self.read_count))
-                # 如果测试，设置就看3秒
-                # if self.app_args['testapp']:
-                #     article_delay = 3
                 logger.info(f'[{self.username}]阅读时间估计 {article_delay} 秒...')
                 pbar = tqdm(
                     total=article_delay, bar_format='{l_bar}|{bar}| 已读{n_fmt}秒/总计需阅读{total_fmt}秒', nrows=10, ncols=50,
@@ -1809,11 +1846,12 @@ class AutoApp(Automation):
                 pbar.close()
                 if ssc_count > 0:
                     try:
-                        self.driver.xpath(rules['article_comments'])
-                        self._star_share_comments(title)
-                        ssc_count -= 1
+                        if self.driver.xpath(rules['article_comments']):
+                            self._star_share_comments(title)
+                            ssc_count -= 1
                     except XPathElementNotFoundError:
-                        logger.debug('[{self.username}]这是一篇关闭评论的文章，收藏分享留言过程出现错误')
+                        logger.debug(
+                            '[{self.username}]这是一篇关闭评论的文章，收藏分享留言过程出现错误')
                 self.titles.append(title)
                 self.safe_back('article -> list')
                 time.sleep(0.5)
@@ -1835,7 +1873,8 @@ class AutoApp(Automation):
         else:
             delay = random.randint(5, 15)
         try:
-            self.driver.xpath('//android.widget.TextView[@text="推荐"]').click_exists(0.5)
+            self.driver.xpath(
+                '//android.widget.TextView[@text="推荐"]').click_exists(0.5)
             if cfg.get('emu_args', 'emu_name').lower() == 'microvirt':
                 volumes = self.driver.xpath(rules['xy_article_volume']).all()
             elif cfg.get('emu_args', 'emu_name').lower() == 'nox':
@@ -1900,8 +1939,8 @@ class AutoApp(Automation):
             if self.driver.xpath('//android.widget.TextView[@text="推荐"]').click_exists(0.5):
                 break
             else:
-                self.driver.swipe_ext("right", box=(x1, y1, x2, y2), scale=0.65)
-
+                self.driver.swipe_ext(
+                    "right", box=(x1, y1, x2, y2), scale=0.65)
         while True:
             if cfg.get('emu_args', 'emu_name').lower() == 'microvirt':
                 volumes = self.driver.xpath(rules['xy_article_volume']).all()
@@ -1951,7 +1990,10 @@ class AutoApp(Automation):
         self.view_time = cfg.getint("prefers", "video_view_time")
         if self.app_args['testapp']:
             self.video_count = cfg.getint("test", "app_watch")
-            self.view_delay = self.read_delay = cfg.getint("test", "test_delay")
+            self.view_delay = cfg.getint(
+                "test", "test_delay")
+            self.read_delay = cfg.getint(
+                "test", "test_delay")
         else:
             self.radio_channel = cfg.get("prefers", "radio_channel")
             g, t = self.score["视听学习"]
@@ -2011,20 +2053,17 @@ class AutoApp(Automation):
         except XPathElementNotFoundError:
             pass
         self.safe_click(rules['bailing_enter'])  # 再点一次刷新短视频列表
-        time.sleep(2)
         self.safe_click(rules['video_first'])
         logger.info(f'[{self.username}]预计观看视频 {video_count} 则')
         # 划走提示示例页面
         # 或者点击两次
         self.swipe_up()
-        time.sleep(0.3)
+        time.sleep(0.5)
         self.swipe_down()
         while video_count:
             video_count -= 1
             # video_delay = random.randint(
             #     self.view_delay, self.view_delay + min(10, self.video_count))
-            # 因为2020年8月的升级，减少了视听收看的时长（6分钟）
-            # 所以有view_time=720秒需要减少一半时长
             video_delay = self.view_delay
             logger.info(
                 f'[{self.username}]正在观看视频 <{video_count + 1}#> {video_delay} 秒进入下一则...')
@@ -2145,7 +2184,8 @@ class AutoApp(Automation):
                                   '/android.view.View[2]/android.view.View[1] '
                     if self.driver.xpath(point_xpath).exists:
                         point = self.driver.xpath(point_xpath).get_text()
-                        logger.info(f'\033[7;41m[{self.username}]本次本周答题得分：{point}分。\033[0m')
+                        logger.info(
+                            f'\033[7;41m[{self.username}]本次本周答题得分：{point}分。\033[0m')
                     self.safe_back('weekly report -> weekly list')
                     self.safe_back('weekly list -> quiz')
                     return True
@@ -2300,7 +2340,9 @@ def emu_start(**args):
         cmd = 'start /b /D "' + cfg.get('emu_args', 'microvirt_path') + '" MEmuConsole.exe' + \
               ' "' + args['emu_name'] + '"'
     elif cfg.get('emu_args', 'emu_name').lower() == 'nox':
-        cmd = 'start /b /D "' + cfg.get('emu_args', 'nox_path') + '" NoxConsole.exe launch -name:' + args['emu_name']
+        cmd = 'start /b /D "' + \
+              cfg.get('emu_args', 'nox_path') + \
+              '" NoxConsole.exe launch -name:' + args['emu_name']
     elif cfg.get('emu_args', 'emu_name').lower() == 'leidian':
         cmd = 'start /b /D "' + cfg.get('emu_args', 'leidian_path') + '" dnconsole.exe launch --name ' + args[
             'emu_name']
@@ -2325,11 +2367,17 @@ def adb_connect(**args):
     while True:
         try:
             if cfg.get('emu_args', 'emu_name').lower() == 'microvirt':
-                cmd = r'start /b /D "' + cfg.get('emu_args', 'microvirt_path') + '" adb connect ' + args["udid"]
+                cmd = r'start /b /D "' + \
+                      cfg.get('emu_args', 'microvirt_path') + \
+                      '" adb connect ' + args["udid"]
             elif cfg.get('emu_args', 'emu_name').lower() == 'nox':
-                cmd = r'start /b /D "' + cfg.get('emu_args', 'nox_path') + '" adb.exe connect ' + args["udid"]
+                cmd = r'start /b /D "' + \
+                      cfg.get('emu_args', 'nox_path') + \
+                      '" adb.exe connect ' + args["udid"]
             elif cfg.get('emu_args', 'emu_name').lower() == 'leidian':
-                cmd = r'start /b /D "' + cfg.get('emu_args', 'leidian_path') + '" adb.exe connect ' + args["udid"]
+                cmd = r'start /b /D "' + \
+                      cfg.get('emu_args', 'leidian_path') + \
+                      '" adb.exe connect ' + args["udid"]
             subp = subprocess.Popen(cmd, shell=True, stdout=open('.\\logs\\' + 'adbconnect.log', 'a'),
                                     stderr=subprocess.STDOUT)
             # subp.wait(15)
@@ -2381,14 +2429,17 @@ def begin_study(**args):
     # win32api.MessageBox(0, f'{app_args_list["username"]}今日学习完成！', "恭喜你学习完成", win32con.MB_OK)
 
 
-def close_emu(emu_name='leidian'):
+def close_emu(emu_name_string='leidian'):
     cmd = ''
-    if emu_name.upper() == 'microvirt'.upper():
-        cmd = f'start /b /D "' + cfg.get('emu_args', 'microvirt_path') + '" memuc stopall'
-    elif emu_name.upper() == 'nox'.upper():
-        cmd = f'start /b /D "' + cfg.get('emu_args', 'nox_path') + '" NoxConsole.exe quitall'
-    elif emu_name.upper() == 'leidian'.upper():
-        cmd = f'start /b /D "' + cfg.get('emu_args', 'leidian_path') + '" dnconsole.exe quitall'
+    if emu_name_string.upper() == 'microvirt'.upper():
+        cmd = f'start /b /D "' + \
+              cfg.get('emu_args', 'microvirt_path') + '" memuc stopall'
+    elif emu_name_string.upper() == 'nox'.upper():
+        cmd = f'start /b /D "' + \
+              cfg.get('emu_args', 'nox_path') + '" NoxConsole.exe quitall'
+    elif emu_name_string.upper() == 'leidian'.upper():
+        cmd = f'start /b /D "' + \
+              cfg.get('emu_args', 'leidian_path') + '" dnconsole.exe quitall'
     if 0 == subprocess.check_call(cmd, shell=True, stdout=open(
             '.\\logs\\' + 'emu.log', 'a'), stderr=subprocess.STDOUT):
         logger.info(
@@ -2398,35 +2449,18 @@ def close_emu(emu_name='leidian'):
             f'\033[27;31;46m 关闭模拟器操作失败...\033[0m')
 
 
-def mute_emu(**args):
-    """
-    静音模拟器
-    """
-    if cfg.get('emu_args', 'true_machine') == '1' or cfg.get('emu_args', 'true_machine').lower() == 'true':
-        return
-    cmd = ''
-    logger.info(f"[{args['username']}]\033[27;32;41m启动模拟器\033[0m")
-    port = str(args['port'])
-    if cfg.get('emu_args', 'emu_name').lower() == 'microvirt':
-        cmd = 'start /b /D "' + cfg.get('emu_args', 'microvirt_path') + '" MEmuConsole.exe' + \
-              ' "' + args['emu_name'] + '"'
-    elif cfg.get('emu_args', 'emu_name').lower() == 'nox':
-        cmd = 'start /b /D "' + cfg.get('emu_args', 'nox_path') + '" NoxConsole.exe launch -name:' + args['emu_name']
-    elif cfg.get('emu_args', 'emu_name').lower() == 'leidian':
-        cmd = 'start /b /D "' + cfg.get('emu_args', 'leidian_path') + '" dnconsole.exe launch --name ' + args[
-            'emu_name']
-
-
 def restart_adb_server():
     cmd = ''
     if cfg.get('emu_args', 'emu_name').lower() == 'microvirt':
-        cmd = 'start /b /D "' + cfg.get('emu_args', 'microvirt_path') + '" adb.exe '
+        cmd = 'start /b /D "' + \
+              cfg.get('emu_args', 'microvirt_path') + '" adb.exe '
         close_emu('microvirt')
     elif cfg.get('emu_args', 'emu_name').lower() == 'nox':
         cmd = 'start /b /D "' + cfg.get('emu_args', 'nox_path') + '" adb.exe '
         close_emu('Nox')
     elif cfg.get('emu_args', 'emu_name').lower() == 'leidian':
-        cmd = 'start /b /D "' + cfg.get('emu_args', 'leidian_path') + '" adb.exe '
+        cmd = 'start /b /D "' + \
+              cfg.get('emu_args', 'leidian_path') + '" adb.exe '
         close_emu('leidian')
 
     res = subprocess.Popen('tasklist | find "adb.exe"',
@@ -2436,7 +2470,8 @@ def restart_adb_server():
         logger.debug(f'\033[7;41m 关闭所有的adb服务！\033[0m')
         # if len(server_list) > 0:
         subp = subprocess.Popen("taskkill -F -PID adb.exe", shell=True,
-                                stdout=open('.\\logs\\' + 'adbconnect.log', 'a'),
+                                stdout=open(
+                                    '.\\logs\\' + 'adbconnect.log', 'a'),
                                 stderr=subprocess.STDOUT)
         # subp.wait(15)
         subp.communicate()
