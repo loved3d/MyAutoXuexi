@@ -575,9 +575,9 @@ class AutoApp(Automation):
             self.run_modules.append(self.special_answer)
         if module_name == '挑战答题' and (self.challenge not in self.run_modules):
             self.run_modules.append(self.challenge)
-        if module_name == '订阅' and (self.subscribe not in self.run_modules) \
-                and 0 != cfg.getint('users', 'subscribed_pages_' + self.app_args['id']):
-            self.run_modules.append(self.subscribe)
+        #if module_name == '订阅' and (self.subscribe not in self.run_modules) \
+        #        and 0 != cfg.getint('users', 'subscribed_pages_' + self.app_args['id']):
+        #    self.run_modules.append(self.subscribe)
         if (module_name == '分享' or module_name == '发表观点') and (self.read not in self.run_modules):
             self.run_modules.append(self.read)
         if module_name == '本地频道' and (self.read not in self.run_modules):
@@ -984,7 +984,7 @@ class AutoApp(Automation):
         wf_begin_time = datetime.datetime.now()
         wf_end_time = datetime.datetime.now()
         quiz_num = 1
-        while quiz_num < 6:
+        while quiz_num < 8:
             try:
                 content = self.driver(
                     textStartsWith=f'{quiz_num}. ').get_text(10)
@@ -1181,8 +1181,8 @@ class AutoApp(Automation):
             for _ in range(run_times):
                 self.driver(text='继续挑战').click_exists(3)
                 self.safe_click(rules["1v1_entry"])
-                self.safe_click(rules["1v1_invite_entry"])
-                self.safe_click(rules["1v1_begin"])
+                self.safe_click(rules["1v1_random_entry"])
+                #self.safe_click(rules["1v1_begin"])
                 if self.driver.xpath(rules['who_first_times_exceeded']).wait(0.5):
                     self.driver.xpath('//*[@text="知道了"]').click_exists(2)
                     logger.info(f'\033[7;30;43m【争上游答题】已超过今日对战次数，请明日再来。\033[0m')
@@ -2280,8 +2280,10 @@ for i in user_list:
         udid = 'xxxxxx'
 
     if len(cfg.get('users', f'username{i}')) > 11:
-        username = decrypt(cfg.get('users', f'username{i}'), cfg.get('users', 'prikey_path'))
-        password = decrypt(cfg.get('users', f'password{i}'), cfg.get('users', 'prikey_path'))
+        #username = decrypt(cfg.get('users', f'username{i}'), cfg.get('users', 'prikey_path'))
+        #password = decrypt(cfg.get('users', f'password{i}'), cfg.get('users', 'prikey_path'))
+        username = cfg.get('users', f'username{i}')
+        password = cfg.get('users', f'password{i}')
     else:
         username = cfg.get('users', f'username{i}')
         password = cfg.get('users', f'password{i}')
@@ -2536,7 +2538,7 @@ if __name__ == "__main__":
             adb_connect(**run_args)
             begin_study(**run_args)
     end_time = datetime.datetime.now()
-    winsound.PlaySound(r'Ending.wav', winsound.SND_ALIAS)
+    #winsound.PlaySound(r'Ending.wav', winsound.SND_ALIAS)
     logger.info(
         f'\033[7;41m 今日学习完成！！！\033[0m')
     logger.info(
