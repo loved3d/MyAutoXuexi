@@ -957,7 +957,7 @@ class AutoApp(Automation):
 
     def is_finish_page(self, wf_begin_time, wf_end_time, module='争上游答题'):
         try:
-            xpath = '//*[contains(@text,"获得胜利") or contains(@text,"挑战失败")]'
+            xpath = '//*[contains(@text,"获得胜利") or contains(@text,"继续挑战")]'
             result = self.driver.xpath(xpath).get_text().strip()
         except XPathElementNotFoundError:
             logger.debug(f'\033[7;41m还没到结束答题页面\033[0m')
@@ -1001,7 +1001,7 @@ class AutoApp(Automation):
                     # time.sleep(random.uniform(0.01, 0))
                     for _ in range(5):
                         self.driver.click(x, y)
-                    time.sleep(1.5)
+                    time.sleep(3.5)
                     # time.sleep(random.uniform(0.01, 0))
                     # self.driver(className='android.widget.RadioButton')[choose_index].click()
                     wf_end_time = datetime.datetime.now()
@@ -2255,6 +2255,10 @@ microvirt_string = r'start /b /D "D:\Program Files\Microvirt\MEmu" MEmuConsole.e
 nox_string = r'start /b /D "D:\Program Files\Nox\bin" NoxConsole.exe launch -name:'
 leidian_string = r'start /b /D "D:\Program Files\Nox\bin" NoxConsole.exe launch -name:'
 
+if cfg.get('emu_args', 'true_machine') == '1' or cfg.get('emu_args', 'true_machine').lower() == 'true':
+    is_true_machine = True
+else:
+    is_true_machine = False
 user_list = list(
     set(re.split(r'[,，;；、/.\s]', cfg.get('users', 'study_users'))))
 try:
@@ -2267,7 +2271,9 @@ except (NoOptionError, NoSectionError):
     is_test = False
 
 for i in user_list:
-    if cfg.get('emu_args', 'emu_name').lower() == 'microvirt':
+    if is_true_machine:
+        udid = '91fa0a04'
+    elif cfg.get('emu_args', 'emu_name').lower() == 'microvirt':
         emu_name = cfg.get('users', f'emu_mv_{i}')
         udid = f'127.0.0.1:215{int(i) - 1}3'
     elif cfg.get('emu_args', 'emu_name').lower() == 'nox':
@@ -2276,8 +2282,6 @@ for i in user_list:
     elif cfg.get('emu_args', 'emu_name').lower() == 'leidian':
         emu_name = cfg.get('users', f'emu_nox_{i}')
         udid = f'127.0.0.1:{5555 + 2 * (int(i) - 1)}'
-    if cfg.get('emu_args', 'true_machine') == '1' or cfg.get('emu_args', 'true_machine').lower() == 'true':
-        udid = 'xxxxxx'
 
     if len(cfg.get('users', f'username{i}')) > 11:
         #username = decrypt(cfg.get('users', f'username{i}'), cfg.get('users', 'prikey_path'))
@@ -2338,7 +2342,7 @@ def emu_start(**args):
     """
     启动模拟器
     """
-    if cfg.get('emu_args', 'true_machine') == '1' or cfg.get('emu_args', 'true_machine').lower() == 'true':
+    if is_true_machine:
         return
     cmd = ''
     logger.info(f"[{args['username']}]\033[27;32;41m启动模拟器\033[0m")
@@ -2368,6 +2372,9 @@ def adb_connect(**args):
     """
     启动adb连接模块
     """
+    if is_true_machine:
+        return
+
     cmd = ''
     logger.info(
         f'[{args["username"]}]\033[27;31;46m 正在连接模拟器 {args["udid"]}，请稍候...\033[0m')
@@ -2416,6 +2423,8 @@ def begin_study(**args):
         xuexi_app.test()
     else:
         xuexi_app.start()
+    if is_true_machine:
+        return
     logger.info(
         f'\033[7;41m 关闭{args["username"]}使用的模拟器！\033[0m')
     if cfg.get('emu_args', 'emu_name').lower() == 'microvirt':
@@ -2457,6 +2466,8 @@ def close_emu(emu_name_string='leidian'):
 
 
 def restart_adb_server():
+    if is_true_machine:
+        return
     cmd = ''
     if cfg.get('emu_args', 'emu_name').lower() == 'microvirt':
         cmd = 'start /b /D "' + \
