@@ -2282,12 +2282,11 @@ for i in user_list:
     elif cfg.get('emu_args', 'emu_name').lower() == 'leidian':
         emu_name = cfg.get('users', f'emu_nox_{i}')
         udid = f'127.0.0.1:{5555 + 2 * (int(i) - 1)}'
-
+        
+    #根据用户名长度判断是否是RSA 1024位加密解密
     if len(cfg.get('users', f'username{i}')) > 11:
-        #username = decrypt(cfg.get('users', f'username{i}'), cfg.get('users', 'prikey_path'))
-        #password = decrypt(cfg.get('users', f'password{i}'), cfg.get('users', 'prikey_path'))
-        username = cfg.get('users', f'username{i}')
-        password = cfg.get('users', f'password{i}')
+        username = decrypt(cfg.get('users', f'username{i}'), cfg.get('users', 'prikey_path'))
+        password = decrypt(cfg.get('users', f'password{i}'), cfg.get('users', 'prikey_path'))
     else:
         username = cfg.get('users', f'username{i}')
         password = cfg.get('users', f'password{i}')
