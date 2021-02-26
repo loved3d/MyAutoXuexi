@@ -92,6 +92,9 @@ class Automation:
         self.size = self.driver.window_size()
         self.driver.implicitly_wait(15)
         self.driver.xpath.logger.setLevel(logging.DEBUG)
+        if is_true_machine:
+            self.unlock_phone()
+
 
     @staticmethod
     def get_device_list():
@@ -183,6 +186,18 @@ class Automation:
         except XPathElementNotFoundError:
             logger.debug(f'没找到学习或者答题入口...')
             return False
+    
+    #真机 亮屏 解锁屏幕
+    def unlock_phone(self):
+        self.driver.screen_on()
+        time.sleep(2)
+        logger.debug(f'真机 mi 5 解锁屏幕')
+        self.driver.screen_on()
+        self.driver.swipe_ext("up")
+        time.sleep(2)
+        self.driver.swipe_points([(0.502, 0.82), (0.77, 0.52), (0.229, 0.52)], 0.2)
+        time.sleep(2)
+        self.driver.app_stop(cfg.get('capability', 'apppackage'))
 
     # def __del__(self):
     #     try:
@@ -2282,7 +2297,7 @@ for i in user_list:
     elif cfg.get('emu_args', 'emu_name').lower() == 'leidian':
         emu_name = cfg.get('users', f'emu_nox_{i}')
         udid = f'127.0.0.1:{5555 + 2 * (int(i) - 1)}'
-        
+
     #根据用户名长度判断是否是RSA 1024位加密解密
     if len(cfg.get('users', f'username{i}')) > 11:
         username = decrypt(cfg.get('users', f'username{i}'), cfg.get('users', 'prikey_path'))
