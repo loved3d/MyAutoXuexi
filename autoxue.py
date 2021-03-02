@@ -259,90 +259,6 @@ class AutoApp(Automation):
     def click_callback(text: str, d: u2.Device):
         d.xpath(text).click()
 
-    @staticmethod
-    def _blank_answer_divide(ans: str, arr: list):
-        accu_revr = [x for x in accumulate(arr)]
-        # print(accu_revr)
-        temp = list(ans)
-        for c in accu_revr[-2::-1]:
-            temp.insert(c, " ")
-        return "".join(temp)
-
-    def mute(self):
-        for times in range(15):
-            if 0 != subprocess.check_call(f'adb -s {self.app_args["udid"]} shell input keyevent 25',
-                                          shell=True, stdout=subprocess.PIPE):
-                logger.info(f'音量无须调节或调节完毕。')
-
-    def back_to_home(self, delay=0.5):
-        try:
-            while not self.driver.xpath(rules['home_entry']).wait(0.5):
-                self.driver.press('back')
-                self.driver(text='退出').click_exists(0.5)
-                time.sleep(0.5)
-            self.home_button_click()
-            return True
-        except Exception as msg:
-            logger.debug(f'返回主页出现异常{msg}')
-            return False
-
-    def quiz_entry_warning(self):
-        # 新更新的提示页面三个按钮的xpath一样的
-        for _ in range(3):
-            try:
-                self.driver.xpath(rules["quiz_next_button"]).click_exists(1)
-                # next_button = self.driver.xpath(
-                #     rules["quiz_next_button"])
-                # next_button.click()
-            except XPathElementNotFoundError:
-                return False
-        time.sleep(1)
-        return True
-
-    def home_button_click(self, delay=0.5):
-        try:
-            self.driver.xpath(rules['home_entry']).click_exists(1)
-        except (XPathElementNotFoundError, UiObjectNotFoundError):
-            time.sleep(delay)
-            self.back_to_home()
-
-    def login_or_not(self):
-        # com.alibaba.android.user.login.SignUpWithPwdActivity
-        # time.sleep(15)
-        while True:
-            if self.driver(resourceId=rules['home_entry'][18:65]).exists:
-                # self.driver.xpath(rules["home_entry"])
-                logger.debug(f'不需要登录')
-                return
-            elif self.driver(resourceId='cn.xuexi.android:id/user_avatar_login_tv').exists:
-                logger.debug(self.driver.app_current)
-                logger.debug(f"非首页，先进行登录")
-                time.sleep(2)
-                break
-        if not self.username or not self.password:
-            logger.error(f'未提供有效的username和password')
-            logger.info(f'也许你可以通过下面的命令重新启动:')
-            logger.info(
-                f'\tpython -m xuexi -u "your_username" -p "your_password"')
-            raise ValueError('需要提供登录的用户名和密钥，或者提前在App登录账号后运行本程序')
-        while True:
-            try:
-                if self.driver.xpath(rules['login_username']).wait(15):
-                    username = self.driver.xpath(rules['login_username'])
-                    password = self.driver.xpath(rules['login_password'])
-                    username.set_text(self.username)
-                    time.sleep(3)
-                    password.set_text(self.password)
-                    break
-            except XPathElementNotFoundError:
-                pass
-        self.driver(text='登录').click_exists(10)
-        time.sleep(2)
-        self.driver(text='同意并继续').click_exists(10)
-        time.sleep(2)
-        self.driver(text='同意').click_exists(10)
-        time.sleep(2)
-
     def start(self):
         # i = random.random()
         # times防止程序不停验证是否答题完毕
@@ -434,6 +350,189 @@ class AutoApp(Automation):
         if cfg.getint('test', 'app_kaleidoscope'):
             self.run_modules.append(self.kaleidoscope)
 
+    def set_run_modules(self, module_name):
+        if module_name == '我要选读文章' and (self.read not in self.run_modules):
+            self.run_modules.append(self.read)
+        if module_name == '视听学习' and (self.watch not in self.run_modules):
+            self.run_modules.append(self.watch)
+        if module_name == '视听学习时长' and (self.watch not in self.run_modules):
+            self.run_modules.append(self.watch)
+        if module_name == '每日答题' and (self.daily not in self.run_modules):
+            self.run_modules.append(self.daily)
+        if module_name == '争上游答题' and (self.who_first not in self.run_modules) and self.who_first_finished is False:
+            self.run_modules.append(self.who_first)
+        if module_name == '双人对战' and (self.one_vs_one not in self.run_modules) and self.one_vs_one_finished is False:
+            self.run_modules.append(self.one_vs_one)
+        if module_name == '每周答题' and (self.weekly not in self.run_modules) and self.is_workday():
+            self.run_modules.append(self.weekly)
+        if module_name == '专项答题' and (self.special_answer not in self.run_modules) and self.is_workday():
+            self.run_modules.append(self.special_answer)
+        if module_name == '挑战答题' and (self.challenge not in self.run_modules):
+            self.run_modules.append(self.challenge)
+        #if module_name == '订阅' and (self.subscribe not in self.run_modules) \
+        #        and 0 != cfg.getint('users', 'subscribed_pages_' + self.app_args['id']):
+        #    self.run_modules.append(self.subscribe)
+        if (module_name == '分享' or module_name == '发表观点') and (self.read not in self.run_modules):
+            self.run_modules.append(self.read)
+        if module_name == '本地频道' and (self.read not in self.run_modules):
+            self.run_modules.append(self.kaleidoscope)
+
+    def mute(self):
+        for times in range(15):
+            if 0 != subprocess.check_call(f'adb -s {self.app_args["udid"]} shell input keyevent 25',
+                                          shell=True, stdout=subprocess.PIPE):
+                logger.info(f'音量无须调节或调节完毕。')
+
+    def back_to_home(self, delay=0.5):
+        try:
+            while not self.driver.xpath(rules['home_entry']).wait(0.5):
+                self.driver.press('back')
+                self.driver(text='退出').click_exists(0.5)
+                time.sleep(0.5)
+            self.home_button_click()
+            return True
+        except Exception as msg:
+            logger.debug(f'返回主页出现异常{msg}')
+            return False
+
+    def back_to_answer(self, item_name):
+        # 首先让程序回到主界面
+        # 然后从主界面，根据item_name返回到相应的答题项目
+        while True and item_name:
+            try:
+                self.driver.xpath(rules["home_entry"])
+                logger.debug(f'[{self.username}]已经到了主页面，再返回就退出APP啦')
+                break
+            except XPathElementNotFoundError:
+                logger.debug(f'准备前往{item_name}答题')
+                self.driver.keyevent(4)  # 模拟按下返回键
+                time.sleep(1)
+
+    def workday_warning(self):
+        week_str = ['星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日']
+        day_of_week = datetime.datetime.now().isoweekday()
+        warning = ''
+        for day in self.workdays:
+            warning = warning + week_str[int(day) - 1] + '、'
+        if warning is not None:
+            logger.info(
+                f'[{self.username}]\033[41;4m 你设置了在{warning}进行答题。\033[0m')
+        if str(day_of_week) in self.workdays:
+            logger.info(f'[{self.username}]\033[41;4m 今日是答题日。\033[0m')
+            return True
+        else:
+            logger.info(
+                f'[{self.username}]\033[41;4m 今日不是答题日，所以不会进行【每周答题】和【专项答题】。\033[0m')
+            return False
+
+    def quiz_entry_warning(self):
+        # 新更新的提示页面三个按钮的xpath一样的
+        for _ in range(3):
+            try:
+                self.driver.xpath(rules["quiz_next_button"]).click_exists(1)
+                # next_button = self.driver.xpath(
+                #     rules["quiz_next_button"])
+                # next_button.click()
+            except XPathElementNotFoundError:
+                return False
+        time.sleep(1)
+        return True
+
+    def home_button_click(self, delay=0.5):
+        try:
+            self.driver.xpath(rules['home_entry']).click_exists(1)
+        except (XPathElementNotFoundError, UiObjectNotFoundError):
+            time.sleep(delay)
+            self.back_to_home()
+
+    def login_or_not(self):
+        # com.alibaba.android.user.login.SignUpWithPwdActivity
+        # time.sleep(15)
+        while True:
+            if self.driver(resourceId=rules['home_entry'][18:65]).exists:
+                # self.driver.xpath(rules["home_entry"])
+                logger.debug(f'不需要登录')
+                return
+            elif self.driver(resourceId='cn.xuexi.android:id/user_avatar_login_tv').exists:
+                logger.debug(self.driver.app_current)
+                logger.debug(f"非首页，先进行登录")
+                time.sleep(2)
+                break
+        if not self.username or not self.password:
+            logger.error(f'未提供有效的username和password')
+            logger.info(f'也许你可以通过下面的命令重新启动:')
+            logger.info(
+                f'\tpython -m xuexi -u "your_username" -p "your_password"')
+            raise ValueError('需要提供登录的用户名和密钥，或者提前在App登录账号后运行本程序')
+        while True:
+            try:
+                if self.driver.xpath(rules['login_username']).wait(15):
+                    username = self.driver.xpath(rules['login_username'])
+                    password = self.driver.xpath(rules['login_password'])
+                    username.set_text(self.username)
+                    time.sleep(3)
+                    password.set_text(self.password)
+                    break
+            except XPathElementNotFoundError:
+                pass
+        self.driver(text='登录').click_exists(10)
+        time.sleep(2)
+        self.driver(text='同意并继续').click_exists(10)
+        time.sleep(2)
+        self.driver(text='同意').click_exists(10)
+        time.sleep(2)
+
+    def logout_or_not(self):
+        while not self.driver.xpath(rules['score_entry']).click_exists(10):
+            time.sleep(3)
+            self.back_to_home()
+        time.sleep(3)
+        # 第一次或者版本更新会有一到两个提示窗出现
+        self.driver.xpath(rules['score_remind']).click_exists(2)
+        while True:
+            try:
+                total_score = self.driver.xpath(
+                    rules["total_score"]).wait(5).text
+                if total_score == '今日已累积 --积分':
+                    continue
+                logger.info(f'[{self.username}]\033[1;31;43m【{total_score}】')
+                score_list = self.driver.xpath(rules['score_list']).all()
+                # 屏幕下划来模拟获取积分情况
+                for times in random.randint(2,4):
+                    self.swipe_up()
+                break
+            except (AttributeError, XPathElementNotFoundError):
+                logger.info(f'[{self.username}]\033[1;31;43m分数获取出错！\033[0m')
+                time.sleep(3)
+        if cfg.get("prefers", "keep_alive") == '1' or cfg.get("prefers", "keep_alive").upper() == 'TRUE':
+            logger.debug("无需自动注销账号")
+            return
+        self.back_to_home()
+        self.safe_click(rules["mine_entry"])
+        self.safe_click(rules["setting_submit"])
+        self.safe_click(rules["logout_submit"])
+        self.safe_click(rules["logout_confirm"])
+        logger.info("已注销")
+
+    def back_or_not(self, title):
+        # return False
+        if self.app_args['testapp'] is False:
+            g, t = self.score[title]
+            if g == t:
+                logger.info(
+                    f' [{self.username}]\033[7;41m【{title}】 应完成{t}分，实际完成{g}分，无需重复获取积分。\033[0m')
+                return True
+            return False
+        else:
+            return False
+
+    def is_workday(self):
+        day_of_week = datetime.datetime.now().isoweekday()
+        if str(day_of_week) in self.workdays:
+            return True
+        else:
+            return False
+
     def study_is_over(self):
         funcs = []
         is_over = True
@@ -471,75 +570,6 @@ class AutoApp(Automation):
             pass
         return is_over, funcs
 
-    def logout_or_not(self):
-        while not self.driver.xpath(rules['score_entry']).click_exists(10):
-            time.sleep(3)
-            self.back_to_home()
-        time.sleep(3)
-        # 第一次或者版本更新会有一到两个提示窗出现
-        self.driver.xpath(rules['score_remind']).click_exists(2)
-        while True:
-            try:
-                total_score = self.driver.xpath(
-                    rules["total_score"]).wait(5).text
-                if total_score == '今日已累积 --积分':
-                    continue
-                logger.info(f'[{self.username}]\033[1;31;43m【{total_score}】')
-                score_list = self.driver.xpath(rules['score_list']).all()
-                # 屏幕下划来模拟获取积分情况
-                for times in random.randint(2,4):
-                    self.swipe_up()
-                break
-            except (AttributeError, XPathElementNotFoundError):
-                logger.info(f'[{self.username}]\033[1;31;43m分数获取出错！\033[0m')
-                time.sleep(3)
-        if cfg.get("prefers", "keep_alive") == '1' or cfg.get("prefers", "keep_alive").upper() == 'TRUE':
-            logger.debug("无需自动注销账号")
-            return
-        self.back_to_home()
-        self.safe_click(rules["mine_entry"])
-        self.safe_click(rules["setting_submit"])
-        self.safe_click(rules["logout_submit"])
-        self.safe_click(rules["logout_confirm"])
-        logger.info("已注销")
-
-    def workday_warning(self):
-        week_str = ['星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日']
-        day_of_week = datetime.datetime.now().isoweekday()
-        warning = ''
-        for day in self.workdays:
-            warning = warning + week_str[int(day) - 1] + '、'
-        if warning is not None:
-            logger.info(
-                f'[{self.username}]\033[41;4m 你设置了在{warning}进行答题。\033[0m')
-        if str(day_of_week) in self.workdays:
-            logger.info(f'[{self.username}]\033[41;4m 今日是答题日。\033[0m')
-            return True
-        else:
-            logger.info(
-                f'[{self.username}]\033[41;4m 今日不是答题日，所以不会进行【每周答题】和【专项答题】。\033[0m')
-            return False
-
-    def back_to_answer(self, item_name):
-        # 首先让程序回到主界面
-        # 然后从主界面，根据item_name返回到相应的答题项目
-        while True and item_name:
-            try:
-                self.driver.xpath(rules["home_entry"])
-                logger.debug(f'[{self.username}]已经到了主页面，再返回就退出APP啦')
-                break
-            except XPathElementNotFoundError:
-                logger.debug(f'准备前往{item_name}答题')
-                self.driver.keyevent(4)  # 模拟按下返回键
-                time.sleep(1)
-
-    def is_workday(self):
-        day_of_week = datetime.datetime.now().isoweekday()
-        if str(day_of_week) in self.workdays:
-            return True
-        else:
-            return False
-
     def view_score(self):
         """
         查看得分情况
@@ -576,45 +606,6 @@ class AutoApp(Automation):
         for num in self.score:
             logger.debug(f'{num}, {self.score[num]}')
         self.back_to_home()
-
-    def set_run_modules(self, module_name):
-        if module_name == '我要选读文章' and (self.read not in self.run_modules):
-            self.run_modules.append(self.read)
-        if module_name == '视听学习' and (self.watch not in self.run_modules):
-            self.run_modules.append(self.watch)
-        if module_name == '视听学习时长' and (self.watch not in self.run_modules):
-            self.run_modules.append(self.watch)
-        if module_name == '每日答题' and (self.daily not in self.run_modules):
-            self.run_modules.append(self.daily)
-        if module_name == '争上游答题' and (self.who_first not in self.run_modules) and self.who_first_finished is False:
-            self.run_modules.append(self.who_first)
-        if module_name == '双人对战' and (self.one_vs_one not in self.run_modules) and self.one_vs_one_finished is False:
-            self.run_modules.append(self.one_vs_one)
-        if module_name == '每周答题' and (self.weekly not in self.run_modules) and self.is_workday():
-            self.run_modules.append(self.weekly)
-        if module_name == '专项答题' and (self.special_answer not in self.run_modules) and self.is_workday():
-            self.run_modules.append(self.special_answer)
-        if module_name == '挑战答题' and (self.challenge not in self.run_modules):
-            self.run_modules.append(self.challenge)
-        #if module_name == '订阅' and (self.subscribe not in self.run_modules) \
-        #        and 0 != cfg.getint('users', 'subscribed_pages_' + self.app_args['id']):
-        #    self.run_modules.append(self.subscribe)
-        if (module_name == '分享' or module_name == '发表观点') and (self.read not in self.run_modules):
-            self.run_modules.append(self.read)
-        if module_name == '本地频道' and (self.read not in self.run_modules):
-            self.run_modules.append(self.kaleidoscope)
-
-    def back_or_not(self, title):
-        # return False
-        if self.app_args['testapp'] is False:
-            g, t = self.score[title]
-            if g == t:
-                logger.info(
-                    f' [{self.username}]\033[7;41m【{title}】 应完成{t}分，实际完成{g}分，无需重复获取积分。\033[0m')
-                return True
-            return False
-        else:
-            return False
 
     def _search(self, content, options, exclude=''):
         """
@@ -730,209 +721,6 @@ class AutoApp(Automation):
             else:
                 logger.debug("题目类型非法")
 
-    def _update_bank(self, item):  # 向题库增加新题
-        if not self.bank or not self.bank["answer"]:
-            self.query.put(item)
-
-    # 订阅模块
-    def _subscribe_init(self):
-        """
-        订阅初始化模块 +2
-        """
-        if self.app_args['testapp']:
-            self.subscribe_times = 0
-        else:
-            self.subscribe_times, self.subscribe_total = self.score["订阅"]
-    # TODO
-    def _subscribe(self):
-        """
-        执行订阅模块 +2
-        """
-        logger.info(f'[{self.username}]开始执行订阅操作...')
-        # 根据ini文件的提供已订阅页数，先直接翻页
-        try:
-            page = cfg.getint(
-                'users', 'subscribed_pages_' + self.app_args['id'])
-        except (NoOptionError, NoSectionError):
-            page = 1
-        if page == 0:
-            return
-        for num in range(page):
-            self.swipe_up()
-        sub_cat = re.split(
-            r'[,，;；、/.\s]', cfg.get("prefers", "subscribed_category"))
-        while self.subscribe_times < 2:
-            # subscribe_titles = self.wait.until(EC.presence_of_all_elements_located(
-            #     (By.XPATH, rules["subscribe_title"])))
-            for cat in sub_cat:
-                self.driver(description=cat).click_exists(3)
-                subscribe_buttons = self.driver.xpath(
-                    rules["subscribe_subs_buttons"]).all()
-                for subs_button in subscribe_buttons:
-                    if subs_button.attrib["content-desc"] == '订阅':
-                        subs_button.click()
-                        self.subscribe_times += 1
-                        time.sleep(1)
-                        logger.info(
-                            f'[{self.username}]\033[7;41m 在{page}页有订阅内容，完成第{self.subscribe_times}次订阅。\033[0m')
-                    if self.subscribe_times == 2:
-                        logger.info(
-                            f'[{self.username}]\033[7;41m 已经执行【订阅】{self.subscribe_times}次，完成【订阅】。\033[0m')
-                        return
-                self.swipe_up()
-                time.sleep(1)
-                page += 1
-                try:
-                    if self.driver.xpath(rules["subscribe_list_endline"]).exists:
-                        subscribe_buttons = self.driver.xpath(
-                            rules["subscribe_subs_buttons"]).all()
-                        for subs_button in subscribe_buttons:
-                            if subs_button.attrib["content-desc"] == '订阅':
-                                subs_button.click()
-                                self.subscribe_times += 1
-                                logger.info(
-                                    f'[{self.username}]\033[7;41m 在{page}页有订阅内容，完成第{self.subscribe_times}次订阅。\033[0m')
-                            if self.subscribe_times == 2:
-                                logger.info(
-                                    f'[{self.username}]\033[7;41m 已经执行【订阅】{self.subscribe_times}次，完成【订阅】。\033[0m')
-                                return
-                        if self.subscribe_times < 2:
-                            logger.info(
-                                f'[{self.username}]在翻动{page}页到订阅页底部，今天完成了{self.subscribe_times}次订阅后，无可订阅的频道。')
-                            return
-                except XPathElementNotFoundError:
-                    pass
-
-    def subscribe(self):
-        """
-        订阅模块 +2
-        """
-        self._subscribe_init()
-        if self.subscribe_times < 2:
-            self.safe_click(rules["mine_entry"])
-            self.safe_click(rules["subscribe_entry"])
-            self.safe_click(rules["subscribe_add"])
-            self._subscribe()
-            self.back_to_home()
-
-    # 专项答题
-    def _special_answer_init(self):
-        self.endofspecial = False
-        g, t = self.score["专项答题"]
-        if g > 0:
-            self.endofspecial = True
-
-    def _special_answer(self):
-        """
-        专项答题执行模块 +10
-        """
-        # titles = self.wait.until(
-        #     EC.presence_of_all_elements_located((By.XPATH, rules["special_titles"])))
-        is_end = False
-        states = list()
-        try:
-            page = cfg.getint('prefers', 'special_answer_begin_page')
-        except (NoOptionError, NoSectionError):
-            page = 1
-        try:
-            special_count = cfg.getint('prefers', 'special_count_each_group')
-        except (NoOptionError, NoSectionError):
-            special_count = 10
-        while not is_end and page > 0:
-            try:
-                states.clear()
-                states = self.driver.xpath(rules["special_answer_entry"]).all()
-                for state in states:
-                    # if not first and title.location_in_view["y"]>0:
-                    #     first = title
-                    if self.size[1] - state.bounds[3] < 10:
-                        logger.debug(f'[{self.username}]屏幕内没有未作答试卷')
-                        break
-                    if "开始答题" == state.text:
-                        #  or "继续答题" == state.get_attribute(
-                        #         "name") or "重新答题" == state.get_attribute("name"):
-                        #  or "已满分" == state.get_attribute("name"):
-                        logger.info(f'{state.text}！')
-                        state.click()
-                        time.sleep(random.uniform(1, 3))
-                        self._dispatch(special_count)  # 这里直接采用每日答题
-                        # self.safe_back('quit special answer')
-                        is_end = True
-                        break
-                    elif ("继续答题" == state.text or "已满分" == state.text or "重新答题" == state.text) and \
-                            self.app_args['testapp']:
-                        # elif "开始答题" == state.text and self.app_args['testapp']:
-                        logger.info(
-                            f'\033[7;41m[【专项答题】{state.text}！\033[0m')
-                        state.click()
-                        time.sleep(random.uniform(1, 3))
-                        self._dispatch(special_count)  # 这里直接采用每日答题
-                        time.sleep(3)
-                        self.safe_back('quit special answer')
-                        time.sleep(3)
-                        is_end = True
-                        # break
-                    elif "已过期" == state.text:
-                        # self.safe_back('quit special answer')
-                        is_end = True
-                        # 如果发现已过期，说明以下的题组已经失效，翻页也没有用了，直接退出
-                        page = 0
-                        break
-                # 如果该页没有可以答题的题组，翻页寻找
-                self.swipe_up()
-                page -= 1
-                time.sleep(2)
-            except XPathElementNotFoundError:
-                logger.info(
-                    f'\033[7;41m[{self.username}]没有可以学习的专项答题，可能所有题目组已经答完。\033[0m')
-                self.safe_back('special answer->special answer list')
-                self.safe_back('special answer list -> quiz')
-                return None
-        point_xpath = '//*[@resource-id="app"]/android.view.View[7]/android.view.View[2]'
-        if self.driver.xpath(point_xpath).exists:
-            point = self.driver.xpath(point_xpath).get_text()
-            logger.info(
-                f'\033[7;41m[{self.username}]本次专项答题得分：{point}分。\033[0m')
-        self.safe_back('special answer->special answer list')
-        self.safe_back('special answer list -> quiz')
-
-    def special_answer(self):
-        """
-        专项答题模块 +10
-        """
-        # self._special_answer_init()
-
-        if not self.is_workday() and self.app_args['testapp'] is False:
-            return
-        if self.app_args['testapp']:
-            self.safe_click(rules["mine_entry"])
-            self.safe_click(rules["quiz_entry"])
-            try:
-                self.driver.xpath(rules['quiz_updateinfo']).click_exists(0.5)
-            except (XPathElementNotFoundError, XPathElementNotFoundError):
-                pass
-        else:
-            g, t = self.score["专项答题"]
-            if g == 0 or self.app_args['testapp']:
-                self.safe_click(rules["mine_entry"])
-                self.safe_click(rules["quiz_entry"])
-                # 更新后会出现一个提示窗口，需要确定关闭掉
-                try:
-                    self.driver.xpath(
-                        rules['quiz_updateinfo']).click_exists(0.5)
-                except (XPathElementNotFoundError, XPathElementNotFoundError):
-                    pass
-                # 翻过新更新的提示页面（三个按钮的xpath一样的）
-            else:
-                logger.info(
-                    f'\033[7;41m [{self.username}]【专项答题】应完成{self.score["专项答题"][1]}分，'
-                    + f'实际完成{self.score["专项答题"][0]}分，已经完成答题。\033[0m')
-                return
-        self.quiz_entry_warning()
-        self.safe_click(rules["special_entry"])
-        self._special_answer()
-        self.back_to_home()
-
     # @pysnooper.snoop()
     def _simple_verify(self, content, options):
         """ 搜索单选题模块 """
@@ -969,32 +757,16 @@ class AutoApp(Automation):
             })
         return answer, result_count
 
+    def _update_bank(self, item):  # 向题库增加新题
+        if not self.bank or not self.bank["answer"]:
+            self.query.put(item)
+
     # 争上游答题
     def _who_first_init(self):
         """
         争上游答题初始化模块 +5
         """
         pass
-
-    def is_finish_page(self, wf_begin_time, wf_end_time, module='争上游答题'):
-        try:
-            xpath = '//*[contains(@text,"获得胜利") or contains(@text,"继续挑战")]'
-            result = self.driver.xpath(xpath).get_text().strip()
-        except XPathElementNotFoundError:
-            logger.debug(f'\033[7;41m还没到结束答题页面\033[0m')
-            return None
-        else:
-            if '获得胜利！' == result:
-                win_times, loss_times = self.query.update_answer_record(
-                    [f'user{self.app_args["id"]}', f'{datetime.date.today()}', module, 1, 0])
-            else:
-                win_times, loss_times = self.query.update_answer_record(
-                    [f'user{self.app_args["id"]}', f'{datetime.date.today()}', module, 0, 1])
-            logger.info(
-                f'\033[7;41m [{self.username}]本次{module}答题总计耗时：{wf_end_time - wf_begin_time}。' +
-                f'【本次{result}】 今天完成【{module}】' +
-                f' 共计{win_times + loss_times}次，获得{win_times}次胜利，失利{loss_times}次。\033[0m')
-            return True
 
     # @pysnooper.snoop()
     def _who_first(self, module_name):
@@ -1108,6 +880,26 @@ class AutoApp(Automation):
                 pass
         self.back_to_home()
         pass  # 调试用
+
+    def is_finish_page(self, wf_begin_time, wf_end_time, module='争上游答题'):
+        try:
+            xpath = '//*[contains(@text,"获得胜利") or contains(@text,"继续挑战")]'
+            result = self.driver.xpath(xpath).get_text().strip()
+        except XPathElementNotFoundError:
+            logger.debug(f'\033[7;41m还没到结束答题页面\033[0m')
+            return None
+        else:
+            if '获得胜利！' == result:
+                win_times, loss_times = self.query.update_answer_record(
+                    [f'user{self.app_args["id"]}', f'{datetime.date.today()}', module, 1, 0])
+            else:
+                win_times, loss_times = self.query.update_answer_record(
+                    [f'user{self.app_args["id"]}', f'{datetime.date.today()}', module, 0, 1])
+            logger.info(
+                f'\033[7;41m [{self.username}]本次{module}答题总计耗时：{wf_end_time - wf_begin_time}。' +
+                f'【本次{result}】 今天完成【{module}】' +
+                f' 共计{win_times + loss_times}次，获得{win_times}次胜利，失利{loss_times}次。\033[0m')
+            return True
 
     # 双人对战1v1
     def _one_vs_one_init(self):
@@ -1448,6 +1240,15 @@ class AutoApp(Automation):
         time.sleep(2)
         return content
 
+    @staticmethod
+    def _blank_answer_divide(ans: str, arr: list):
+        accu_revr = [x for x in accumulate(arr)]
+        # print(accu_revr)
+        temp = list(ans)
+        for c in accu_revr[-2::-1]:
+            temp.insert(c, " ")
+        return "".join(temp)
+
     def _blank(self):
         """
         填空题答题模块
@@ -1735,6 +1536,237 @@ class AutoApp(Automation):
             self.driver(text='再来一组').click_exists(3)
         self.safe_back('daily -> quiz')
         self.driver.xpath(rules["daily_back_confirm"]).click_exists(2)
+        self.back_to_home()
+
+    # class Weekly(App):
+    def _weekly_init(self):
+        self.workdays = cfg.get("prefers", "workdays")
+
+    def _weekly(self):
+        """
+        每周答题执行模块 +5
+        """
+        self.safe_click(rules["weekly_entry"])
+        question_count = 0
+        # 看看ini文件里面第几页是没有作答的每周答题
+        # 逐页翻动，并检查没有是否有没做过的
+        try:
+            page = cfg.getint('prefers', 'weekly_page')
+            question_count = cfg.getint('prefers', 'weekly_count_each_group')
+        except (NoOptionError, NoSectionError):
+            page = 1
+        cur_page = 0
+        while page > cur_page:
+            titles = self.driver.xpath(rules["weekly_titles"]).all()
+            states = self.driver.xpath(rules["weekly_states"]).all()
+            for title, state in zip(titles, states):
+                # if self.size[1] - title.location_in_view["y"] < 10:
+                if self.size[1] - title.bounds[3] < 10:
+                    logger.debug(f'[{self.username}]屏幕内没有未作答试卷')
+                    break
+                # logger.info(
+                #     f'{title.get_attribute("name")} {state.get_attribute("name")}')
+                # if "未作答" == state.get_attribute("name"):
+                # if "2019年12月第五周答题" == title.get_attribute("name").strip() or "未作答" == state.get_attribute("name"):
+                if "未作答" == state.text and self.app_args['testapp'] is False:
+                    logger.info(
+                        f'[{self.username}]在翻到第{cur_page}页时，发现答题项！{title.text}, 开始！')
+                    state.click()
+                    time.sleep(random.randint(3, 6))
+                    self._dispatch(question_count)  # 这里直接采用每日答题
+                    # cur_page = page
+                    self.safe_back('weekly report -> weekly list')
+                    self.safe_back('weekly list -> quiz')
+                    return True
+                # 测试模块
+                if ("未作答" == state.text or "已作答" == state.text) and \
+                        self.app_args['testapp']:
+                    logger.info(
+                        f'[{self.username}]在翻到第{cur_page}页时，发现答题项！{title.text}, 开始！')
+                    state.click()
+                    time.sleep(random.randint(3, 6))
+                    self._dispatch(question_count)  # 这里直接采用每日答题
+                    # cur_page = page
+                    point_xpath = '//*[@resource-id="app"]/android.view.View[7]' \
+                                  '/android.view.View[2]/android.view.View[1] '
+                    if self.driver.xpath(point_xpath).exists:
+                        point = self.driver.xpath(point_xpath).get_text()
+                        logger.info(
+                            f'\033[7;41m[{self.username}]本次本周答题得分：{point}分。\033[0m')
+                    self.safe_back('weekly report -> weekly list')
+                    self.safe_back('weekly list -> quiz')
+                    return True
+                # 准备用来测试每周答题的功能的
+                # if "已作答" == state.get_attribute("name"):
+                #     logger.info(f'{title.get_attribute("name")}, 开始！')
+                #     state.click()
+                #     time.sleep(random.randint(3, 6))
+                #     self._dispatch(5)  # 这里直接采用每日答题
+                #     cur_page = page
+                #     self.safe_back('weekly report -> weekly list')
+                #     self.safe_back('weekly list -> quiz')
+                #     return True
+            self.swipe_up()
+            # print(f'[{self.username}]每周答题开始翻页，还需要翻动{page-cur_page}页。')
+            cur_page += 1
+            time.sleep(1)
+            # 保留：下面语句是看看是不是到了题库底部
+            # try:
+            #     weekly_list_endline = self.wait.until(
+            #         EC.presence_of_element_located((By.XPATH, rules["weekly_list_endline"])))
+            #     cur_page = page
+            # except:
+            #     pass
+        self.safe_back('weekly list -> quiz')
+        return False
+
+    def weekly(self):
+        """
+        每周答题 +5
+        复用每日答题的方法，无法保证每次得满分，如不能接受，请将配置workdays设为0
+        """
+        self._weekly_init()
+        if self.app_args['testapp']:
+            pass
+        elif not self.is_workday():
+            logger.debug(
+                f'[{self.username}]今日不宜每周答题/ {self.workdays}')
+            return
+        # 如果得分大于0，表示已经做过一套题，可能没得满分，不再继续做题。
+        elif self.score['每周答题'][0]:
+            logger.info(
+                f'\033[7;41m [{self.username}]【每周答题】应完成{self.score["每周答题"][1]}分，实际完成{self.score["每周答题"][0]}分，已经完成答题。 '
+                f'\033[0m')
+            return
+        self.safe_click(rules['mine_entry'])
+        self.safe_click(rules['quiz_entry'])
+        # 更新后会出现一个提示窗口，需要确定关闭掉
+        try:
+            self.driver.xpath(rules['quiz_updateinfo']).click_exists(0.5)
+        except (XPathElementNotFoundError, XPathElementNotFoundError):
+            pass
+        # 处理新更新的提示页面三个按钮的xpath一样的
+        self.quiz_entry_warning()
+        time.sleep(3)
+        self._weekly()
+        self.back_to_home()
+
+    # 专项答题
+    def _special_answer_init(self):
+        self.endofspecial = False
+        g, t = self.score["专项答题"]
+        if g > 0:
+            self.endofspecial = True
+
+    def _special_answer(self):
+        """
+        专项答题执行模块 +10
+        """
+        # titles = self.wait.until(
+        #     EC.presence_of_all_elements_located((By.XPATH, rules["special_titles"])))
+        is_end = False
+        states = list()
+        try:
+            page = cfg.getint('prefers', 'special_answer_begin_page')
+        except (NoOptionError, NoSectionError):
+            page = 1
+        try:
+            special_count = cfg.getint('prefers', 'special_count_each_group')
+        except (NoOptionError, NoSectionError):
+            special_count = 10
+        while not is_end and page > 0:
+            try:
+                states.clear()
+                states = self.driver.xpath(rules["special_answer_entry"]).all()
+                for state in states:
+                    # if not first and title.location_in_view["y"]>0:
+                    #     first = title
+                    if self.size[1] - state.bounds[3] < 10:
+                        logger.debug(f'[{self.username}]屏幕内没有未作答试卷')
+                        break
+                    if "开始答题" == state.text:
+                        #  or "继续答题" == state.get_attribute(
+                        #         "name") or "重新答题" == state.get_attribute("name"):
+                        #  or "已满分" == state.get_attribute("name"):
+                        logger.info(f'{state.text}！')
+                        state.click()
+                        time.sleep(random.uniform(1, 3))
+                        self._dispatch(special_count)  # 这里直接采用每日答题
+                        # self.safe_back('quit special answer')
+                        is_end = True
+                        break
+                    elif ("继续答题" == state.text or "已满分" == state.text or "重新答题" == state.text) and \
+                            self.app_args['testapp']:
+                        # elif "开始答题" == state.text and self.app_args['testapp']:
+                        logger.info(
+                            f'\033[7;41m[【专项答题】{state.text}！\033[0m')
+                        state.click()
+                        time.sleep(random.uniform(1, 3))
+                        self._dispatch(special_count)  # 这里直接采用每日答题
+                        time.sleep(3)
+                        self.safe_back('quit special answer')
+                        time.sleep(3)
+                        is_end = True
+                        # break
+                    elif "已过期" == state.text:
+                        # self.safe_back('quit special answer')
+                        is_end = True
+                        # 如果发现已过期，说明以下的题组已经失效，翻页也没有用了，直接退出
+                        page = 0
+                        break
+                # 如果该页没有可以答题的题组，翻页寻找
+                self.swipe_up()
+                page -= 1
+                time.sleep(2)
+            except XPathElementNotFoundError:
+                logger.info(
+                    f'\033[7;41m[{self.username}]没有可以学习的专项答题，可能所有题目组已经答完。\033[0m')
+                self.safe_back('special answer->special answer list')
+                self.safe_back('special answer list -> quiz')
+                return None
+        point_xpath = '//*[@resource-id="app"]/android.view.View[7]/android.view.View[2]'
+        if self.driver.xpath(point_xpath).exists:
+            point = self.driver.xpath(point_xpath).get_text()
+            logger.info(
+                f'\033[7;41m[{self.username}]本次专项答题得分：{point}分。\033[0m')
+        self.safe_back('special answer->special answer list')
+        self.safe_back('special answer list -> quiz')
+
+    def special_answer(self):
+        """
+        专项答题模块 +10
+        """
+        # self._special_answer_init()
+
+        if not self.is_workday() and self.app_args['testapp'] is False:
+            return
+        if self.app_args['testapp']:
+            self.safe_click(rules["mine_entry"])
+            self.safe_click(rules["quiz_entry"])
+            try:
+                self.driver.xpath(rules['quiz_updateinfo']).click_exists(0.5)
+            except (XPathElementNotFoundError, XPathElementNotFoundError):
+                pass
+        else:
+            g, t = self.score["专项答题"]
+            if g == 0 or self.app_args['testapp']:
+                self.safe_click(rules["mine_entry"])
+                self.safe_click(rules["quiz_entry"])
+                # 更新后会出现一个提示窗口，需要确定关闭掉
+                try:
+                    self.driver.xpath(
+                        rules['quiz_updateinfo']).click_exists(0.5)
+                except (XPathElementNotFoundError, XPathElementNotFoundError):
+                    pass
+                # 翻过新更新的提示页面（三个按钮的xpath一样的）
+            else:
+                logger.info(
+                    f'\033[7;41m [{self.username}]【专项答题】应完成{self.score["专项答题"][1]}分，'
+                    + f'实际完成{self.score["专项答题"][0]}分，已经完成答题。\033[0m')
+                return
+        self.quiz_entry_warning()
+        self.safe_click(rules["special_entry"])
+        self._special_answer()
         self.back_to_home()
 
     # 我要选读文章模块 阅读文章
@@ -2167,119 +2199,86 @@ class AutoApp(Automation):
         self._watch(self.video_count)
         # self._watch_video(self.video_count)
 
-    # class Weekly(App):
-
-    def _weekly_init(self):
-        self.workdays = cfg.get("prefers", "workdays")
-
-    def _weekly(self):
+    # TODO 订阅模块
+    def _subscribe_init(self):
         """
-        每周答题执行模块 +5
+        订阅初始化模块 +2
         """
-        self.safe_click(rules["weekly_entry"])
-        question_count = 0
-        # 看看ini文件里面第几页是没有作答的每周答题
-        # 逐页翻动，并检查没有是否有没做过的
+        if self.app_args['testapp']:
+            self.subscribe_times = 0
+        else:
+            self.subscribe_times, self.subscribe_total = self.score["订阅"]
+
+    def _subscribe(self):
+        """
+        执行订阅模块 +2
+        """
+        logger.info(f'[{self.username}]开始执行订阅操作...')
+        # 根据ini文件的提供已订阅页数，先直接翻页
         try:
-            page = cfg.getint('prefers', 'weekly_page')
-            question_count = cfg.getint('prefers', 'weekly_count_each_group')
+            page = cfg.getint(
+                'users', 'subscribed_pages_' + self.app_args['id'])
         except (NoOptionError, NoSectionError):
             page = 1
-        cur_page = 0
-        while page > cur_page:
-            titles = self.driver.xpath(rules["weekly_titles"]).all()
-            states = self.driver.xpath(rules["weekly_states"]).all()
-            for title, state in zip(titles, states):
-                # if self.size[1] - title.location_in_view["y"] < 10:
-                if self.size[1] - title.bounds[3] < 10:
-                    logger.debug(f'[{self.username}]屏幕内没有未作答试卷')
-                    break
-                # logger.info(
-                #     f'{title.get_attribute("name")} {state.get_attribute("name")}')
-                # if "未作答" == state.get_attribute("name"):
-                # if "2019年12月第五周答题" == title.get_attribute("name").strip() or "未作答" == state.get_attribute("name"):
-                if "未作答" == state.text and self.app_args['testapp'] is False:
-                    logger.info(
-                        f'[{self.username}]在翻到第{cur_page}页时，发现答题项！{title.text}, 开始！')
-                    state.click()
-                    time.sleep(random.randint(3, 6))
-                    self._dispatch(question_count)  # 这里直接采用每日答题
-                    # cur_page = page
-                    self.safe_back('weekly report -> weekly list')
-                    self.safe_back('weekly list -> quiz')
-                    return True
-                # 测试模块
-                if ("未作答" == state.text or "已作答" == state.text) and \
-                        self.app_args['testapp']:
-                    logger.info(
-                        f'[{self.username}]在翻到第{cur_page}页时，发现答题项！{title.text}, 开始！')
-                    state.click()
-                    time.sleep(random.randint(3, 6))
-                    self._dispatch(question_count)  # 这里直接采用每日答题
-                    # cur_page = page
-                    point_xpath = '//*[@resource-id="app"]/android.view.View[7]' \
-                                  '/android.view.View[2]/android.view.View[1] '
-                    if self.driver.xpath(point_xpath).exists:
-                        point = self.driver.xpath(point_xpath).get_text()
-                        logger.info(
-                            f'\033[7;41m[{self.username}]本次本周答题得分：{point}分。\033[0m')
-                    self.safe_back('weekly report -> weekly list')
-                    self.safe_back('weekly list -> quiz')
-                    return True
-                # 准备用来测试每周答题的功能的
-                # if "已作答" == state.get_attribute("name"):
-                #     logger.info(f'{title.get_attribute("name")}, 开始！')
-                #     state.click()
-                #     time.sleep(random.randint(3, 6))
-                #     self._dispatch(5)  # 这里直接采用每日答题
-                #     cur_page = page
-                #     self.safe_back('weekly report -> weekly list')
-                #     self.safe_back('weekly list -> quiz')
-                #     return True
+        if page == 0:
+            return
+        for num in range(page):
             self.swipe_up()
-            # print(f'[{self.username}]每周答题开始翻页，还需要翻动{page-cur_page}页。')
-            cur_page += 1
-            time.sleep(1)
-            # 保留：下面语句是看看是不是到了题库底部
-            # try:
-            #     weekly_list_endline = self.wait.until(
-            #         EC.presence_of_element_located((By.XPATH, rules["weekly_list_endline"])))
-            #     cur_page = page
-            # except:
-            #     pass
-        self.safe_back('weekly list -> quiz')
-        return False
+        sub_cat = re.split(
+            r'[,，;；、/.\s]', cfg.get("prefers", "subscribed_category"))
+        while self.subscribe_times < 2:
+            # subscribe_titles = self.wait.until(EC.presence_of_all_elements_located(
+            #     (By.XPATH, rules["subscribe_title"])))
+            for cat in sub_cat:
+                self.driver(description=cat).click_exists(3)
+                subscribe_buttons = self.driver.xpath(
+                    rules["subscribe_subs_buttons"]).all()
+                for subs_button in subscribe_buttons:
+                    if subs_button.attrib["content-desc"] == '订阅':
+                        subs_button.click()
+                        self.subscribe_times += 1
+                        time.sleep(1)
+                        logger.info(
+                            f'[{self.username}]\033[7;41m 在{page}页有订阅内容，完成第{self.subscribe_times}次订阅。\033[0m')
+                    if self.subscribe_times == 2:
+                        logger.info(
+                            f'[{self.username}]\033[7;41m 已经执行【订阅】{self.subscribe_times}次，完成【订阅】。\033[0m')
+                        return
+                self.swipe_up()
+                time.sleep(1)
+                page += 1
+                try:
+                    if self.driver.xpath(rules["subscribe_list_endline"]).exists:
+                        subscribe_buttons = self.driver.xpath(
+                            rules["subscribe_subs_buttons"]).all()
+                        for subs_button in subscribe_buttons:
+                            if subs_button.attrib["content-desc"] == '订阅':
+                                subs_button.click()
+                                self.subscribe_times += 1
+                                logger.info(
+                                    f'[{self.username}]\033[7;41m 在{page}页有订阅内容，完成第{self.subscribe_times}次订阅。\033[0m')
+                            if self.subscribe_times == 2:
+                                logger.info(
+                                    f'[{self.username}]\033[7;41m 已经执行【订阅】{self.subscribe_times}次，完成【订阅】。\033[0m')
+                                return
+                        if self.subscribe_times < 2:
+                            logger.info(
+                                f'[{self.username}]在翻动{page}页到订阅页底部，今天完成了{self.subscribe_times}次订阅后，无可订阅的频道。')
+                            return
+                except XPathElementNotFoundError:
+                    pass
 
-    def weekly(self):
+    def subscribe(self):
         """
-        每周答题 +5
-        复用每日答题的方法，无法保证每次得满分，如不能接受，请将配置workdays设为0
+        订阅模块 +2
         """
-        self._weekly_init()
-        if self.app_args['testapp']:
-            pass
-        elif not self.is_workday():
-            logger.debug(
-                f'[{self.username}]今日不宜每周答题/ {self.workdays}')
-            return
-        # 如果得分大于0，表示已经做过一套题，可能没得满分，不再继续做题。
-        elif self.score['每周答题'][0]:
-            logger.info(
-                f'\033[7;41m [{self.username}]【每周答题】应完成{self.score["每周答题"][1]}分，实际完成{self.score["每周答题"][0]}分，已经完成答题。 '
-                f'\033[0m')
-            return
-        self.safe_click(rules['mine_entry'])
-        self.safe_click(rules['quiz_entry'])
-        # 更新后会出现一个提示窗口，需要确定关闭掉
-        try:
-            self.driver.xpath(rules['quiz_updateinfo']).click_exists(0.5)
-        except (XPathElementNotFoundError, XPathElementNotFoundError):
-            pass
-        # 处理新更新的提示页面三个按钮的xpath一样的
-        self.quiz_entry_warning()
-        time.sleep(3)
-        self._weekly()
-        self.back_to_home()
+        self._subscribe_init()
+        if self.subscribe_times < 2:
+            self.safe_click(rules["mine_entry"])
+            self.safe_click(rules["subscribe_entry"])
+            self.safe_click(rules["subscribe_add"])
+            self._subscribe()
+            self.back_to_home()
 
 
 emu_name = ('MEmu', 'MEmu_1', 'MEmu_2', 'MEmu_3', 'MEmu_4', 'MEmu_5', 'MEmu_6')
