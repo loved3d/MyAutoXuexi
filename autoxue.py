@@ -19,7 +19,7 @@ import subprocess
 import sys
 import threading
 import time
-import winsound
+#import winsound
 from collections import defaultdict
 from configparser import NoOptionError, NoSectionError
 from itertools import accumulate
@@ -189,7 +189,7 @@ class Automation:
     
     #真机 亮屏 解锁屏幕
     def unlock_phone(self):
-        self.driver.screen_on()
+        self.driver.screen_off()
         time.sleep(2)
         logger.debug(f'真机 mi 5 解锁屏幕')
         self.driver.screen_on()
@@ -242,8 +242,8 @@ class AutoApp(Automation):
         # 所以先初始化每日答题部分变量
         self._weekly_init()
         self._daily_init()
-        if self.has_bgm.lower() == 'enable':
-            self._play_radio_background()
+        #if self.has_bgm.lower() == 'enable':
+        #    self._play_radio_background()
 
     @staticmethod
     def shuffle(funcs):
@@ -486,6 +486,9 @@ class AutoApp(Automation):
                     continue
                 logger.info(f'[{self.username}]\033[1;31;43m【{total_score}】')
                 score_list = self.driver.xpath(rules['score_list']).all()
+                # 屏幕下划来模拟获取积分情况
+                for times in random.randint(2,4):
+                    self.swipe_up()
                 break
             except (AttributeError, XPathElementNotFoundError):
                 logger.info(f'[{self.username}]\033[1;31;43m分数获取出错！\033[0m')
@@ -558,6 +561,9 @@ class AutoApp(Automation):
                     continue
                 logger.info(f'[{self.username}]\033[1;31;43m【{total_score}】')
                 score_list = self.driver.xpath(rules['score_list']).all()
+                # 屏幕下划来模拟获取积分情况
+                for times in random.randint(2,4):
+                    self.swipe_up()
                 break
             except (AttributeError, XPathElementNotFoundError):
                 logger.info(f'[{self.username}]\033[1;31;43m分数获取出错！\033[0m')
@@ -737,7 +743,7 @@ class AutoApp(Automation):
             self.subscribe_times = 0
         else:
             self.subscribe_times, self.subscribe_total = self.score["订阅"]
-
+    # TODO
     def _subscribe(self):
         """
         执行订阅模块 +2
@@ -759,7 +765,7 @@ class AutoApp(Automation):
             # subscribe_titles = self.wait.until(EC.presence_of_all_elements_located(
             #     (By.XPATH, rules["subscribe_title"])))
             for cat in sub_cat:
-                self.driver(text=cat).click_exists(3)
+                self.driver(description=cat).click_exists(3)
                 subscribe_buttons = self.driver.xpath(
                     rules["subscribe_subs_buttons"]).all()
                 for subs_button in subscribe_buttons:
@@ -1416,7 +1422,13 @@ class AutoApp(Automation):
         根据答题提示做相应的处理
         """
         # content = ""
-        if self.driver.xpath(rules["daily_tips_open"]).exists:
+        for times in range(5):
+            #下划到度找提示
+            self.swipe_up()
+            if self.driver.xpath(rules["daily_tips_open"]).exists:
+                is_tips_exists = True
+                break
+        if is_tips_exists:
             self.driver.xpath(rules["daily_tips_open"]).click_exists(3)
         else:
             logger.debug("没有可点击的【查看提示】按钮")
@@ -1533,7 +1545,7 @@ class AutoApp(Automation):
             else:
                 logger.info("填空题回答正确")
         except (UiObjectNotFoundError, XPathElementNotFoundError) as msg:
-            logger.info(f'【多选题】出错信息：{msg}')
+            logger.info(f'【填空题】出错信息：{msg}')
 
     def _radio(self):
         """
@@ -1541,6 +1553,11 @@ class AutoApp(Automation):
         """
         content = self.driver.xpath(rules["daily_content"]).wait(10).text
         # content = self.find_element(rules["daily_content"]).get_attribute("name")
+        for times in range(5):
+            #下划到度找提示
+            self.swipe_up()
+            if self.driver.xpath(rules["daily_tips_open"]).exists:
+                break
         option_elements = self.driver.xpath(rules["daily_options"]).all()
         # option_elements = self.driver.find_elements(rules["daily_options"])
         options = [x.text for x in option_elements]
@@ -1586,6 +1603,11 @@ class AutoApp(Automation):
         """
         content = self.driver.xpath(rules["daily_content"]).wait(10).text
         # content = self.find_element(rules["daily_content"]).get_attribute("name")
+        for times in range(5):
+            #下划到度找提示
+            self.swipe_up()
+            if self.driver.xpath(rules["daily_tips_open"]).exists:
+                break
         option_elements = self.driver.xpath(rules["daily_options"]).all()
         # option_elements = self.driver.find_elements(rules["daily_options"])
         options = [x.text for x in option_elements]
@@ -2287,7 +2309,7 @@ except (NoOptionError, NoSectionError):
 
 for i in user_list:
     if is_true_machine:
-        udid = '91fa0a04'
+        udid = '10.176.140.132'
     elif cfg.get('emu_args', 'emu_name').lower() == 'microvirt':
         emu_name = cfg.get('users', f'emu_mv_{i}')
         udid = f'127.0.0.1:215{int(i) - 1}3'
@@ -2528,7 +2550,7 @@ xuexi_process = []
 
 if __name__ == "__main__":
     begin_time = datetime.datetime.now()
-    subprocess.check_call(f"cls", shell=True)
+    #subprocess.check_call(f"clear", shell=True)
     restart_adb_server()
     multiprocessing.freeze_support()
     queue_study = cfg.get('users', 'queue_study')
