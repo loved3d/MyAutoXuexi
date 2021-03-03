@@ -498,8 +498,7 @@ class AutoApp(Automation):
                 logger.info(f'[{self.username}]\033[1;31;43m【{total_score}】')
                 score_list = self.driver.xpath(rules['score_list']).all()
                 # 屏幕下划来模拟获取积分情况
-                for times in range(random.randint(2,4)):
-                    self.swipe_up()
+                self.swipe_up(random.randint(2,4))
                 break
             except (AttributeError, XPathElementNotFoundError):
                 logger.info(f'[{self.username}]\033[1;31;43m分数获取出错！\033[0m')
@@ -592,8 +591,7 @@ class AutoApp(Automation):
                 logger.info(f'[{self.username}]\033[1;31;43m【{total_score}】')
                 score_list = self.driver.xpath(rules['score_list']).all()
                 # 屏幕下划来模拟获取积分情况
-                for times in range(random.randint(2,4)):
-                    self.swipe_up()
+                self.swipe_up(random.randint(2,4))
                 break
             except (AttributeError, XPathElementNotFoundError):
                 logger.info(f'[{self.username}]\033[1;31;43m分数获取出错！\033[0m')
