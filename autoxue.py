@@ -41,8 +41,7 @@ class Automation:
 
     # @pysnooper.snoop()
     def __init__(self, appargs):
-        # self.connect()
-        # self.device_id = devices.connect_device()
+
         self.driver = None
         self.username = None
         self.app_args = {
@@ -58,28 +57,9 @@ class Automation:
         }
         self.app_args = appargs
         self.run_modules = []
-        # self.desired_caps = {
-        #     "platformName": caps["platformname"],
-        #     "platformVersion": caps["platformversion"],
-        #     "automationName": caps["automationname"],
-        #     "unicodeKeyboard": caps["unicodekeyboard"],
-        #     "resetKeyboard": caps["resetkeyboard"],
-        #     "noReset": caps["noreset"],
-        #     'newCommandTimeout': 800,
-        #     "deviceName": caps["devicename"],
-        #     "udid": self.app_args['udid'],
-        #     "systemPort": self.app_args['systemPort'],
-        #     "appPackage": caps["apppackage"],
-        #     "appActivity": caps["appactivity"]
-        # }
-        # logger.info('打开 appium 服务,正在配置...')
-        # self.appium_start()
         logger.info(f'[{self.app_args["username"]}]启动 connect 服务,正在配置...')
         while True:
             try:
-                # self.conn = u2.connect(self.app_args['udid'])
-                # self.driver = self.conn.session(cfg.get('capability', 'apppackage'), 15)
-                # self.driver = u2.connect(self.app_args['udid'])
                 self.driver = u2.connect(self.app_args['udid'])
                 break
             except Exception as msg:
@@ -166,6 +146,11 @@ class Automation:
             # raise e
         return elements
 
+    def mute(self):
+        for times in range(15):
+            if 0 != subprocess.check_call(f'adb -s {self.app_args["udid"]} shell input keyevent 25',shell=True, stdout=subprocess.PIPE):
+                logger.info(f'音量无须调节或调节完毕。')
+
     # 返回事件
     def safe_back(self, msg='default msg'):  # 你用msg里面含有home字符的特点，看看是不是已经退到了主页了
         if not self.driver.xpath(rules['home_entry']).wait(0.5):
@@ -184,9 +169,42 @@ class Automation:
                 time.sleep(delay)
                 return True
         except XPathElementNotFoundError:
+            self.driver.screenshot('test.png')
             logger.debug(f'没找到学习或者答题入口...')
             return False
     
+    def back_to_home(self, delay=0.5):
+        try:
+            while not self.driver.xpath(rules['home_entry']).wait(0.5):
+                self.driver.press('back')
+                self.driver(text='退出').click_exists(0.5)
+                time.sleep(0.5)
+            self.home_button_click()
+            return True
+        except Exception as msg:
+            logger.debug(f'返回主页出现异常{msg}')
+            return False
+
+    def home_button_click(self, delay=0.5):
+        try:
+            self.driver.xpath(rules['home_entry']).click_exists(1)
+        except (XPathElementNotFoundError, UiObjectNotFoundError):
+            time.sleep(delay)
+            self.back_to_home()
+
+    def back_to_answer(self, item_name):
+        # 首先让程序回到主界面
+        # 然后从主界面，根据item_name返回到相应的答题项目
+        while True and item_name:
+            try:
+                self.driver.xpath(rules["home_entry"])
+                logger.debug(f'[{self.username}]已经到了主页面，再返回就退出APP啦')
+                break
+            except XPathElementNotFoundError:
+                logger.debug(f'准备前往{item_name}答题')
+                self.driver.keyevent(4)  # 模拟按下返回键
+                time.sleep(1)
+
     #真机 亮屏 解锁屏幕
     def unlock_phone(self):
         self.driver.screen_off()
@@ -234,8 +252,7 @@ class AutoApp(Automation):
         self.video_count = 5
         self.has_bgm = cfg.get('prefers', 'radio_switch')
         self.score = defaultdict(tuple)
-        self.driver.app_start(cfg.get('capability', 'apppackage'), cfg.get(
-            'capability', 'appactivity'), wait=True)
+        self.driver.app_start(cfg.get('capability', 'apppackage'), cfg.get('capability', 'appactivity'), wait=True)
         # self.driver.wait_activity('com.alibaba.android.rimet.biz.home.activity.HomeActivity', 15)
         self.login_or_not()
         # 因为挑战答题、每周答题、专项答题都用到每日答题模块
@@ -255,9 +272,60 @@ class AutoApp(Automation):
             func()
             time.sleep(3)
 
-    @staticmethod
-    def click_callback(text: str, d: u2.Device):
-        d.xpath(text).click()
+    def set_test_module(self):
+        """
+        设置测试模块
+        """
+        self.run_modules.clear()
+        if cfg.getint('test', 'app_watch'):
+            self.run_modules.append(self.watch)
+        if cfg.getint('test', 'app_read'):
+            self.run_modules.append(self.read)
+        # if cfg.getint('test', 'app_music'):
+        #     self.run_modules.append(self.music)
+        if cfg.getint('test', 'app_daily'):
+            self.run_modules.append(self.daily)
+        if cfg.getint('test', 'app_challenge'):
+            self.run_modules.append(self.challenge)
+        if cfg.getint('test', 'app_who_first'):
+            self.run_modules.append(self.who_first)
+        if cfg.getint('test', 'app_one_vs_one'):
+            self.run_modules.append(self.one_vs_one)
+        if cfg.getint('test', 'app_weekly'):
+            self.run_modules.append(self.weekly)
+        if cfg.getint('test', 'app_special_answer'):
+            self.run_modules.append(self.special_answer)
+        if cfg.getint('test', 'app_subscribe'):
+            self.run_modules.append(self.subscribe)
+        if cfg.getint('test', 'app_kaleidoscope'):
+            self.run_modules.append(self.kaleidoscope)
+
+    def set_run_modules(self, module_name):
+        if module_name == '我要选读文章' and (self.read not in self.run_modules):
+            self.run_modules.append(self.read)
+        if module_name == '视听学习' and (self.watch not in self.run_modules):
+            self.run_modules.append(self.watch)
+        if module_name == '视听学习时长' and (self.watch not in self.run_modules):
+            self.run_modules.append(self.watch)
+        if module_name == '每日答题' and (self.daily not in self.run_modules):
+            self.run_modules.append(self.daily)
+        if module_name == '四人赛' and (self.who_first not in self.run_modules) and self.who_first_finished is False:
+            self.run_modules.append(self.who_first)
+        if module_name == '双人对战' and (self.one_vs_one not in self.run_modules) and self.one_vs_one_finished is False:
+            self.run_modules.append(self.one_vs_one)
+        if module_name == '每周答题' and (self.weekly not in self.run_modules) and self.is_workday():
+            self.run_modules.append(self.weekly)
+        if module_name == '专项答题' and (self.special_answer not in self.run_modules) and self.is_workday():
+            self.run_modules.append(self.special_answer)
+        if module_name == '挑战答题' and (self.challenge not in self.run_modules):
+            self.run_modules.append(self.challenge)
+        #if module_name == '订阅' and (self.subscribe not in self.run_modules) \
+        #        and 0 != cfg.getint('users', 'subscribed_pages_' + self.app_args['id']):
+        #    self.run_modules.append(self.subscribe)
+        if (module_name == '分享' or module_name == '发表观点') and (self.read not in self.run_modules):
+            self.run_modules.append(self.read)
+        if module_name == '本地频道' and (self.read not in self.run_modules):
+            self.run_modules.append(self.kaleidoscope)
 
     def start(self):
         # i = random.random()
@@ -322,92 +390,6 @@ class AutoApp(Automation):
                     break
         self.logout_or_not()
 
-    def set_test_module(self):
-        """
-        设置测试模块
-        """
-        self.run_modules.clear()
-        if cfg.getint('test', 'app_watch'):
-            self.run_modules.append(self.watch)
-        if cfg.getint('test', 'app_read'):
-            self.run_modules.append(self.read)
-        # if cfg.getint('test', 'app_music'):
-        #     self.run_modules.append(self.music)
-        if cfg.getint('test', 'app_daily'):
-            self.run_modules.append(self.daily)
-        if cfg.getint('test', 'app_challenge'):
-            self.run_modules.append(self.challenge)
-        if cfg.getint('test', 'app_who_first'):
-            self.run_modules.append(self.who_first)
-        if cfg.getint('test', 'app_one_vs_one'):
-            self.run_modules.append(self.one_vs_one)
-        if cfg.getint('test', 'app_weekly'):
-            self.run_modules.append(self.weekly)
-        if cfg.getint('test', 'app_special_answer'):
-            self.run_modules.append(self.special_answer)
-        if cfg.getint('test', 'app_subscribe'):
-            self.run_modules.append(self.subscribe)
-        if cfg.getint('test', 'app_kaleidoscope'):
-            self.run_modules.append(self.kaleidoscope)
-
-    def set_run_modules(self, module_name):
-        if module_name == '我要选读文章' and (self.read not in self.run_modules):
-            self.run_modules.append(self.read)
-        if module_name == '视听学习' and (self.watch not in self.run_modules):
-            self.run_modules.append(self.watch)
-        if module_name == '视听学习时长' and (self.watch not in self.run_modules):
-            self.run_modules.append(self.watch)
-        if module_name == '每日答题' and (self.daily not in self.run_modules):
-            self.run_modules.append(self.daily)
-        if module_name == '四人赛' and (self.who_first not in self.run_modules) and self.who_first_finished is False:
-            self.run_modules.append(self.who_first)
-        if module_name == '双人对战' and (self.one_vs_one not in self.run_modules) and self.one_vs_one_finished is False:
-            self.run_modules.append(self.one_vs_one)
-        if module_name == '每周答题' and (self.weekly not in self.run_modules) and self.is_workday():
-            self.run_modules.append(self.weekly)
-        if module_name == '专项答题' and (self.special_answer not in self.run_modules) and self.is_workday():
-            self.run_modules.append(self.special_answer)
-        if module_name == '挑战答题' and (self.challenge not in self.run_modules):
-            self.run_modules.append(self.challenge)
-        #if module_name == '订阅' and (self.subscribe not in self.run_modules) \
-        #        and 0 != cfg.getint('users', 'subscribed_pages_' + self.app_args['id']):
-        #    self.run_modules.append(self.subscribe)
-        if (module_name == '分享' or module_name == '发表观点') and (self.read not in self.run_modules):
-            self.run_modules.append(self.read)
-        if module_name == '本地频道' and (self.read not in self.run_modules):
-            self.run_modules.append(self.kaleidoscope)
-
-    def mute(self):
-        for times in range(15):
-            if 0 != subprocess.check_call(f'adb -s {self.app_args["udid"]} shell input keyevent 25',
-                                          shell=True, stdout=subprocess.PIPE):
-                logger.info(f'音量无须调节或调节完毕。')
-
-    def back_to_home(self, delay=0.5):
-        try:
-            while not self.driver.xpath(rules['home_entry']).wait(0.5):
-                self.driver.press('back')
-                self.driver(text='退出').click_exists(0.5)
-                time.sleep(0.5)
-            self.home_button_click()
-            return True
-        except Exception as msg:
-            logger.debug(f'返回主页出现异常{msg}')
-            return False
-
-    def back_to_answer(self, item_name):
-        # 首先让程序回到主界面
-        # 然后从主界面，根据item_name返回到相应的答题项目
-        while True and item_name:
-            try:
-                self.driver.xpath(rules["home_entry"])
-                logger.debug(f'[{self.username}]已经到了主页面，再返回就退出APP啦')
-                break
-            except XPathElementNotFoundError:
-                logger.debug(f'准备前往{item_name}答题')
-                self.driver.keyevent(4)  # 模拟按下返回键
-                time.sleep(1)
-
     def workday_warning(self):
         week_str = ['星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日']
         day_of_week = datetime.datetime.now().isoweekday()
@@ -437,13 +419,6 @@ class AutoApp(Automation):
                 return False
         time.sleep(1)
         return True
-
-    def home_button_click(self, delay=0.5):
-        try:
-            self.driver.xpath(rules['home_entry']).click_exists(1)
-        except (XPathElementNotFoundError, UiObjectNotFoundError):
-            time.sleep(delay)
-            self.back_to_home()
 
     def login_or_not(self):
         # com.alibaba.android.user.login.SignUpWithPwdActivity
@@ -2198,7 +2173,7 @@ class AutoApp(Automation):
         self._watch(self.video_count)
         # self._watch_video(self.video_count)
 
-    # TODO 订阅模块
+    # 订阅模块
     def _subscribe_init(self):
         """
         订阅初始化模块 +2
@@ -2213,59 +2188,59 @@ class AutoApp(Automation):
         执行订阅模块 +2
         """
         logger.info(f'[{self.username}]开始执行订阅操作...')
-        # 根据ini文件的提供已订阅页数，先直接翻页
-        try:
-            page = cfg.getint(
-                'users', 'subscribed_pages_' + self.app_args['id'])
-        except (NoOptionError, NoSectionError):
-            page = 1
-        if page == 0:
-            return
-        for num in range(page):
-            self.swipe_up()
-        sub_cat = re.split(
-            r'[,，;；、/.\s]', cfg.get("prefers", "subscribed_category"))
+
+        sub_cat = re.split(r'[,，;；、/.\s]', cfg.get("prefers", "subscribed_category"))
         while self.subscribe_times < 2:
             # subscribe_titles = self.wait.until(EC.presence_of_all_elements_located(
             #     (By.XPATH, rules["subscribe_title"])))
             for cat in sub_cat:
                 self.driver(description=cat).click_exists(3)
-                subscribe_buttons = self.driver.xpath(
-                    rules["subscribe_subs_buttons"]).all()
-                for subs_button in subscribe_buttons:
-                    if subs_button.attrib["content-desc"] == '订阅':
-                        subs_button.click()
-                        self.subscribe_times += 1
-                        time.sleep(1)
-                        logger.info(
-                            f'[{self.username}]\033[7;41m 在{page}页有订阅内容，完成第{self.subscribe_times}次订阅。\033[0m')
-                    if self.subscribe_times == 2:
-                        logger.info(
-                            f'[{self.username}]\033[7;41m 已经执行【订阅】{self.subscribe_times}次，完成【订阅】。\033[0m')
-                        return
-                self.swipe_up()
-                time.sleep(1)
-                page += 1
-                try:
-                    if self.driver.xpath(rules["subscribe_list_endline"]).exists:
-                        subscribe_buttons = self.driver.xpath(
-                            rules["subscribe_subs_buttons"]).all()
-                        for subs_button in subscribe_buttons:
-                            if subs_button.attrib["content-desc"] == '订阅':
-                                subs_button.click()
-                                self.subscribe_times += 1
-                                logger.info(
-                                    f'[{self.username}]\033[7;41m 在{page}页有订阅内容，完成第{self.subscribe_times}次订阅。\033[0m')
-                            if self.subscribe_times == 2:
-                                logger.info(
-                                    f'[{self.username}]\033[7;41m 已经执行【订阅】{self.subscribe_times}次，完成【订阅】。\033[0m')
-                                return
-                        if self.subscribe_times < 2:
+                
+                last_string = ""
+
+                while True:
+                    subscribe_buttons = self.driver.xpath(rules["subscribe_subs_buttons"]).all()
+                    for subs_button in subscribe_buttons:
+                        if subs_button.rect[3] < 60:
+                            continue
+                        if subs_button.screenshot().getpixel((32, 32))[1] == 36: #228 36 23 的订阅的颜色 ,242 243 245为已订阅的颜色
+                            #subs_button.click()
+                            self.subscribe_times += 1
+                            time.sleep(1)
                             logger.info(
-                                f'[{self.username}]在翻动{page}页到订阅页底部，今天完成了{self.subscribe_times}次订阅后，无可订阅的频道。')
+                                f'[{self.username}]\033[7;41m 在page页有订阅内容，完成第{self.subscribe_times}次订阅。\033[0m')
+                        if self.subscribe_times == 2:
+                            logger.info(
+                                f'[{self.username}]\033[7;41m 已经执行【订阅】{self.subscribe_times}次，完成【订阅】。\033[0m')
                             return
-                except XPathElementNotFoundError:
-                    pass
+
+                    current_string = self.driver.xpath("//android.view.View/android.widget.ImageView[2][last()]/preceding-sibling::android.view.View[1]/@content-desc").all()[-1].elem
+                    if current_string == last_string:
+                        break
+                    else:
+                        last_string = current_string
+                    self.swipe_up()
+                    time.sleep(2)
+                # time.sleep(1)
+                # try:
+                #     if self.driver.xpath(rules["subscribe_list_endline"]).exists:
+                #         subscribe_buttons = self.driver.xpath(rules["subscribe_subs_buttons"]).all()
+                #         for subs_button in subscribe_buttons:
+                #             if subs_button.attrib["content-desc"] == '订阅':
+                #                 subs_button.click()
+                #                 self.subscribe_times += 1
+                #                 logger.info(
+                #                     f'[{self.username}]\033[7;41m 在page页有订阅内容，完成第{self.subscribe_times}次订阅。\033[0m')
+                #             if self.subscribe_times == 2:
+                #                 logger.info(
+                #                     f'[{self.username}]\033[7;41m 已经执行【订阅】{self.subscribe_times}次，完成【订阅】。\033[0m')
+                #                 return
+                #         if self.subscribe_times < 2:
+                #             logger.info(
+                #                 f'[{self.username}]在翻动page页到订阅页底部，今天完成了{self.subscribe_times}次订阅后，无可订阅的频道。')
+                #             return
+                # except XPathElementNotFoundError:
+                #     pass
 
     def subscribe(self):
         """
