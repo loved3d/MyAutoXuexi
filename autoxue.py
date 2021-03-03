@@ -211,7 +211,7 @@ class AutoApp(Automation):
     # @pysnooper.snoop()
     def __init__(self, appargs):
         super().__init__(appargs)
-        self.study_titles = ["登录", "我要选读文章", "视听学习", "视听学习时长", "每日答题", "每周答题", "专项答题", "挑战答题", "争上游答题", "双人对战", "订阅",
+        self.study_titles = ["登录", "我要选读文章", "视听学习", "视听学习时长", "每日答题", "每周答题", "专项答题", "挑战答题", "四人赛", "双人对战", "订阅",
                              "分享", "发表观点", "本地频道", "强国运动"]
         self.workdays = cfg.get("prefers", "workdays")
         self.username = appargs['username']
@@ -359,7 +359,7 @@ class AutoApp(Automation):
             self.run_modules.append(self.watch)
         if module_name == '每日答题' and (self.daily not in self.run_modules):
             self.run_modules.append(self.daily)
-        if module_name == '争上游答题' and (self.who_first not in self.run_modules) and self.who_first_finished is False:
+        if module_name == '四人赛' and (self.who_first not in self.run_modules) and self.who_first_finished is False:
             self.run_modules.append(self.who_first)
         if module_name == '双人对战' and (self.one_vs_one not in self.run_modules) and self.one_vs_one_finished is False:
             self.run_modules.append(self.one_vs_one)
@@ -498,7 +498,7 @@ class AutoApp(Automation):
                 logger.info(f'[{self.username}]\033[1;31;43m【{total_score}】')
                 score_list = self.driver.xpath(rules['score_list']).all()
                 # 屏幕下划来模拟获取积分情况
-                for times in random.randint(2,4):
+                for times in range(random.randint(2,4)):
                     self.swipe_up()
                 break
             except (AttributeError, XPathElementNotFoundError):
@@ -592,7 +592,7 @@ class AutoApp(Automation):
                 logger.info(f'[{self.username}]\033[1;31;43m【{total_score}】')
                 score_list = self.driver.xpath(rules['score_list']).all()
                 # 屏幕下划来模拟获取积分情况
-                for times in random.randint(2,4):
+                for times in range(random.randint(2,4)):
                     self.swipe_up()
                 break
             except (AttributeError, XPathElementNotFoundError):
@@ -761,17 +761,17 @@ class AutoApp(Automation):
         if not self.bank or not self.bank["answer"]:
             self.query.put(item)
 
-    # 争上游答题
+    # 四人赛
     def _who_first_init(self):
         """
-        争上游答题初始化模块 +5
+        四人赛初始化模块 +5
         """
         pass
 
     # @pysnooper.snoop()
     def _who_first(self, module_name):
         """
-            争上游答题执行模块 +5
+            四人赛执行模块 +5
         """
         time.sleep(random.uniform(7.5, 8.5))
         wf_begin_time = datetime.datetime.now()
@@ -830,12 +830,12 @@ class AutoApp(Automation):
 
     def who_first(self):
         """
-        争上游答题模块 +5
+        四人赛模块 +5
         """
         if self.app_args['testapp']:
             run_times = cfg.getint('test', 'app_who_first')
         else:
-            g, t = self.score["争上游答题"]
+            g, t = self.score["四人赛"]
             if g == 0:
                 run_times = cfg.getint('prefers', 'who_first_times')
             elif g > 3 or self.who_first_finished:
@@ -854,24 +854,24 @@ class AutoApp(Automation):
         for num in range(run_times):
             time.sleep(random.uniform(0.75, 1.15))
             logger.info(
-                f'\033[7;30;43m[{self.username}]今天进行【争上游答题】{run_times}次，现在开始第{num + 1}次争上游答题。\033[0m')
+                f'\033[7;30;43m[{self.username}]今天进行【四人赛】{run_times}次，现在开始第{num + 1}次四人赛。\033[0m')
             self.safe_click(rules["who_first_begin"])
             try:
                 if self.driver.xpath(rules['who_first_times_exceeded']).exists:
                     self.driver.xpath(
                         rules['who_first_know']).click_exists(0.5)
                     self.who_first_finished = True
-                    logger.info(f'\033[7;30;43m【争上游答题】已超过今日对战次数，请明日再来。\033[0m')
+                    logger.info(f'\033[7;30;43m【四人赛】已超过今日对战次数，请明日再来。\033[0m')
                     win_times, loss_times = self.query.update_answer_record(
-                        [f'user{self.app_args["id"]}', f'{datetime.date.today()}', '争上游答题', 0, 0])
-                    logger.info(f'[{self.username}]\033[7;41m 今天已经完成【争上游答题】' +
+                        [f'user{self.app_args["id"]}', f'{datetime.date.today()}', '四人赛', 0, 0])
+                    logger.info(f'[{self.username}]\033[7;41m 今天已经完成【四人赛】' +
                                 f' 共计{win_times + loss_times}次，获得{win_times}次胜利，失利{loss_times}次。\033[0m')
                     self.back_to_home()
                     return
                 else:
                     logger.info(
-                        f'\033[7;30;43m[{self.username}]进入【争上游答题】\033[0m')
-                    self._who_first('争上游答题')
+                        f'\033[7;30;43m[{self.username}]进入【四人赛】\033[0m')
+                    self._who_first('四人赛')
                     if self.driver.xpath(rules['who_first_no_point']).exists and not self.app_args['testapp']:
                         self.who_first_finished = True
                         break
@@ -881,7 +881,7 @@ class AutoApp(Automation):
         self.back_to_home()
         pass  # 调试用
 
-    def is_finish_page(self, wf_begin_time, wf_end_time, module='争上游答题'):
+    def is_finish_page(self, wf_begin_time, wf_end_time, module='四人赛'):
         try:
             xpath = '//*[contains(@text,"获得胜利") or contains(@text,"继续挑战")]'
             result = self.driver.xpath(xpath).get_text().strip()
@@ -998,7 +998,7 @@ class AutoApp(Automation):
                 #self.safe_click(rules["1v1_begin"])
                 if self.driver.xpath(rules['who_first_times_exceeded']).wait(0.5):
                     self.driver.xpath('//*[@text="知道了"]').click_exists(2)
-                    logger.info(f'\033[7;30;43m【争上游答题】已超过今日对战次数，请明日再来。\033[0m')
+                    logger.info(f'\033[7;30;43m【四人赛】已超过今日对战次数，请明日再来。\033[0m')
                     win_times, loss_times = self.query.update_answer_record(
                         [f'user{self.app_args["id"]}', f'{datetime.date.today()}', '双人对战', 0, 0])
                     logger.info(f'[{self.username}]\033[7;41m 今天已经完成【双人对战】' +
@@ -1214,6 +1214,7 @@ class AutoApp(Automation):
         根据答题提示做相应的处理
         """
         # content = ""
+        is_tips_exists  = False
         for times in range(5):
             #下划到度找提示
             self.swipe_up()
