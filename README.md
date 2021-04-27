@@ -153,7 +153,13 @@ pip install XXXXXXXX
 ~~~  
 #### XXXXXXXX为错误提示中（NameError: name 'XXXXXXXX' is not defined）对应模块名。
 
+pip3 install -U "uiautomator2[image]" -i https://pypi.tuna.tsinghua.edu.cn/simple
+
 ---
+
+#### 小米手机，需要关闭安全键盘
+
+设置-更多设置-语言和输入法 找到安全键盘 关闭即可
 
 ### 本自动学习脚本的缺点：对电脑配置要求较高，且安装运行环境很麻烦，需要有少量python知识  
 

@@ -267,7 +267,7 @@ class AutoApp(Automation):
         """
         运行模块乱序执行
         """
-        random.shuffle(funcs)
+        # random.shuffle(funcs)
         for func in funcs:
             func()
             time.sleep(3)
@@ -319,9 +319,8 @@ class AutoApp(Automation):
             self.run_modules.append(self.special_answer)
         if module_name == '挑战答题' and (self.challenge not in self.run_modules):
             self.run_modules.append(self.challenge)
-        #if module_name == '订阅' and (self.subscribe not in self.run_modules) \
-        #        and 0 != cfg.getint('users', 'subscribed_pages_' + self.app_args['id']):
-        #    self.run_modules.append(self.subscribe)
+        if module_name == '订阅' and (self.subscribe not in self.run_modules):
+           self.run_modules.append(self.subscribe)
         if (module_name == '分享' or module_name == '发表观点') and (self.read not in self.run_modules):
             self.run_modules.append(self.read)
         if module_name == '本地频道' and (self.read not in self.run_modules):
@@ -332,6 +331,7 @@ class AutoApp(Automation):
         # times防止程序不停验证是否答题完毕
         self.workday_warning()
         self.view_score()
+        self._subscribe_init()
         # self._play_radio_background()
         times = 0
         # 再查看一次分数
@@ -340,8 +340,7 @@ class AutoApp(Automation):
             self.shuffle(self.run_modules)
             self.view_score()
             if self.run_modules is None:
-                logger.info(
-                    f'[{self.username}]\033[1;31;43m所有答题和学习已经完成，退出程序。\033[0m')
+                logger.info(f'[{self.username}]\033[1;31;43m所有答题和学习已经完成，退出程序。\033[0m')
                 break
             if times == cfg.getint('prefers', 'check_times'):
                 break
@@ -436,8 +435,7 @@ class AutoApp(Automation):
         if not self.username or not self.password:
             logger.error(f'未提供有效的username和password')
             logger.info(f'也许你可以通过下面的命令重新启动:')
-            logger.info(
-                f'\tpython -m xuexi -u "your_username" -p "your_password"')
+            logger.info(f'\tpython -m xuexi -u "your_username" -p "your_password"')
             raise ValueError('需要提供登录的用户名和密钥，或者提前在App登录账号后运行本程序')
         while True:
             try:
@@ -447,6 +445,8 @@ class AutoApp(Automation):
                     username.set_text(self.username)
                     time.sleep(3)
                     password.set_text(self.password)
+                    # 退出输入法
+                    self.safe_back()
                     break
             except XPathElementNotFoundError:
                 pass
@@ -480,6 +480,7 @@ class AutoApp(Automation):
                 time.sleep(3)
         if cfg.get("prefers", "keep_alive") == '1' or cfg.get("prefers", "keep_alive").upper() == 'TRUE':
             logger.debug("无需自动注销账号")
+            self.driver.screen_off()
             return
         self.back_to_home()
         self.safe_click(rules["mine_entry"])
@@ -700,8 +701,7 @@ class AutoApp(Automation):
         quiz_option = None
         if content != '':
             content = re.match(r'.*?\.(.*)', content).group(1).strip()
-            content = content.strip('\r\n').replace(
-                u'\u3000', u' ').replace(u'\xa0', u' ').strip()
+            content = content.strip('\r\n').replace(u'\u3000', u' ').replace(u'\xa0', u' ').strip()
             content = ' '.join(content.split())
         if options is not None:
             quiz_option = [re.match(r'.*?\.(.*)', x).group(1).strip()
@@ -714,10 +714,9 @@ class AutoApp(Automation):
             "options": quiz_option
         })
         if self.bank and self.bank["answer"]:
-            logger.debug(
-                f'[{self.username}]答案是: 【{self.bank["answer"]}】，题目是：{content}')
+            logger.debug(f'[{self.username}]答案是: 【{self.bank["answer"]}】，题目是：{content}')
             answer = self.bank["answer"]
-        elif self.bank is None:
+        elif self.bank is None and options is not None:
             logger.debug(f'[{self.username}]准备更新题库,随机选个答案')
             answer = random.choice(letters)
             self._update_bank({
@@ -746,14 +745,13 @@ class AutoApp(Automation):
         """
             四人赛执行模块 +5
         """
-        time.sleep(random.uniform(7.5, 8.5))
+        # time.sleep(random.uniform(7.5, 8.5))
         wf_begin_time = datetime.datetime.now()
         wf_end_time = datetime.datetime.now()
         quiz_num = 1
         while quiz_num < 8:
             try:
-                content = self.driver(
-                    textStartsWith=f'{quiz_num}. ').get_text(10)
+                content = self.driver(textStartsWith=f'{quiz_num}. ').get_text(10)
                 if content is None:
                     if self.driver(text="正确数/总题数").exists:
                         break
@@ -767,7 +765,7 @@ class AutoApp(Automation):
                     # time.sleep(random.uniform(0.01, 0))
                     for _ in range(5):
                         self.driver.click(x, y)
-                    time.sleep(3.5)
+                    time.sleep(1.5)
                     # time.sleep(random.uniform(0.01, 0))
                     # self.driver(className='android.widget.RadioButton')[choose_index].click()
                     wf_end_time = datetime.datetime.now()
@@ -786,7 +784,7 @@ class AutoApp(Automation):
                     for _ in range(5):
                         self.driver.click(x, y)
                         # time.sleep(random.uniform(0.01, 0))
-                    time.sleep(1.5)
+                    time.sleep(0.5)
                     wf_end_time = datetime.datetime.now()
                     logger.info(f'\033[7;41m 【2.答案】{answer}\033[0m')
                     quiz_num += 1
@@ -796,9 +794,11 @@ class AutoApp(Automation):
                 if self.driver(text="正确数/总题数").exists:
                     if self.is_finish_page(wf_begin_time, wf_end_time, module_name):
                         logger.info(f'\033[7;41m 第一层返回\033[0m')
+                        self.safe_back()
                         return
         if self.is_finish_page(wf_begin_time, wf_end_time, module_name):
             logger.info(f'\033[7;41m 第一层返回\033[0m')
+            self.safe_back()
             return
 
     def who_first(self):
@@ -826,24 +826,21 @@ class AutoApp(Automation):
         self.safe_click(rules["who_first_entry"])
         for num in range(run_times):
             time.sleep(random.uniform(0.75, 1.15))
-            logger.info(
-                f'\033[7;30;43m[{self.username}]今天进行【四人赛】{run_times}次，现在开始第{num + 1}次四人赛。\033[0m')
+            logger.info(f'\033[7;30;43m[{self.username}]今天进行【四人赛】{run_times}次，现在开始第{num + 1}次四人赛。\033[0m')
             self.safe_click(rules["who_first_begin"])
             try:
                 if self.driver.xpath(rules['who_first_times_exceeded']).exists:
-                    self.driver.xpath(
-                        rules['who_first_know']).click_exists(0.5)
+                    self.driver.xpath(rules['who_first_know']).click_exists(0.5)
                     self.who_first_finished = True
                     logger.info(f'\033[7;30;43m【四人赛】已超过今日对战次数，请明日再来。\033[0m')
                     win_times, loss_times = self.query.update_answer_record(
                         [f'user{self.app_args["id"]}', f'{datetime.date.today()}', '四人赛', 0, 0])
-                    logger.info(f'[{self.username}]\033[7;41m 今天已经完成【四人赛】' +
-                                f' 共计{win_times + loss_times}次，获得{win_times}次胜利，失利{loss_times}次。\033[0m')
+                    logger.info(f'[{self.username}]\033[7;41m 今天已经完成【四人赛】' +f' 共计{win_times + loss_times}次，获得{win_times}次胜利，失利{loss_times}次。\033[0m')
                     self.back_to_home()
                     return
                 else:
-                    logger.info(
-                        f'\033[7;30;43m[{self.username}]进入【四人赛】\033[0m')
+                    logger.info(f'\033[7;30;43m[{self.username}]进入【四人赛】\033[0m')
+                    time.sleep(random.uniform(5.5, 6.5))
                     self._who_first('四人赛')
                     if self.driver.xpath(rules['who_first_no_point']).exists and not self.app_args['testapp']:
                         self.who_first_finished = True
@@ -972,16 +969,14 @@ class AutoApp(Automation):
                 if self.driver.xpath(rules['who_first_times_exceeded']).wait(0.5):
                     self.driver.xpath('//*[@text="知道了"]').click_exists(2)
                     logger.info(f'\033[7;30;43m【四人赛】已超过今日对战次数，请明日再来。\033[0m')
-                    win_times, loss_times = self.query.update_answer_record(
-                        [f'user{self.app_args["id"]}', f'{datetime.date.today()}', '双人对战', 0, 0])
-                    logger.info(f'[{self.username}]\033[7;41m 今天已经完成【双人对战】' +
-                                f' 共计{win_times + loss_times}次，获得{win_times}次胜利，失利{loss_times}次。\033[0m')
+                    win_times, loss_times = self.query.update_answer_record([f'user{self.app_args["id"]}', f'{datetime.date.today()}', '双人对战', 0, 0])
+                    logger.info(f'[{self.username}]\033[7;41m 今天已经完成【双人对战】' +f' 共计{win_times + loss_times}次，获得{win_times}次胜利，失利{loss_times}次。\033[0m')
                     self.back_to_home()
                     return
                 else:
                     self.driver.xpath('//*[@text="知道了"]').click_exists(0.5)
-                    logger.info(
-                        f'\033[7;30;43m[{self.username}]现在进行【双人对战】。\033[0m')
+                    logger.info(f'\033[7;30;43m[{self.username}]现在进行【双人对战】。\033[0m')
+                    time.sleep(random.uniform(2.5, 4.5))
                     self._who_first('双人对战')
                     # self._one_vs_one()
             self.safe_back('1v1_answer->1v1_page')
@@ -1027,28 +1022,19 @@ class AutoApp(Automation):
         total = num
         while num > -1:
             try:
-                content = self.driver.xpath(
-                    rules['challenge_content']).get_text()
-                option_elements = self.driver.xpath(
-                    rules['challenge_options']).all()
+                content = self.driver.xpath(rules['challenge_content']).get_text()
+                option_elements = self.driver.xpath(rules['challenge_options']).all()
                 options = [x.text for x in option_elements]
                 length_of_options = len(options)
-                logger.info(
-                    f'[{self.username}]共{self.challenge_count}题，第<{total - num + 1}>题，题目是：{content}')
-                logger.info(
-                    f'[{self.username}]共{self.challenge_count}题，第<{total - num + 1}>题，答案是：{options}')
-                answer = self._verify(
-                    category='单选题', content=content, options=options)
-                delay_time = random.randint(
-                    self.challenge_delay_bot, self.challenge_delay_top)
+                logger.info(f'[{self.username}]共{self.challenge_count}题，第<{total - num + 1}>题，题目是：{content}')
+                logger.info(f'[{self.username}]共{self.challenge_count}题，第<{total - num + 1}>题，答案是：{options}')
+                answer = self._verify(category='单选题', content=content, options=options)
+                delay_time = random.randint(self.challenge_delay_bot, self.challenge_delay_top)
                 if 0 == num:
                     offset = random.randint(1, length_of_options)
-                    logger.info(
-                        f'[{self.username}]//**//已完成指定题量，设置提交选项偏移 -{offset}')
-                    logger.info(
-                        f'[{self.username}]<{total - num + 1}>随机延时 {delay_time} 秒提交答案: {answer}-{offset}')
-                    logger.info(
-                        f'[{self.username}]' + '--------------------------------------------------------------------\n')
+                    logger.info(f'[{self.username}]//**//已完成指定题量，设置提交选项偏移 -{offset}')
+                    logger.info(f'[{self.username}]<{total - num + 1}>随机延时 {delay_time} 秒提交答案: {answer}-{offset}')
+                    logger.info(f'[{self.username}]' + '--------------------------------------------------------------------\n')
                     # 利用python切片的特性，即使索引值为-offset，可以正确取值
                     option_elements[ord(answer) - 65 - offset].click()
                     time.sleep(delay_time)
@@ -1057,17 +1043,15 @@ class AutoApp(Automation):
                     else:
                         continue
                 else:
-                    logger.info(
-                        f'[{self.username}]<{total - num + 1}>随机延时 {delay_time} 秒提交答案: {answer}')
-                    logger.info(
-                        f'[{self.username}]' + '--------------------------------------------------------------------\n')
+                    logger.info(f'[{self.username}]<{total - num + 1}>随机延时 {delay_time} 秒提交答案: {answer}')
+                    logger.info(f'[{self.username}]' + '--------------------------------------------------------------------\n')
                 # 利用python切片的特性，即使索引值为-offset，可以正确取值
+                # TODO 若不在该页面，则无法选择异常
                 option_elements[ord(answer) - 65 - offset].click()
                 time.sleep(delay_time)
                 if self.driver.xpath(rules['challenge_revival']).click_exists(1):
                     logger.info(f'[{self.username}]很遗憾本题回答错误')
-                    logger.info(
-                        f'[{self.username}]\033[7;31;43m 回答错误题目是：{content},错误答案是：{answer}\033[0m')
+                    logger.info(f'[{self.username}]\033[7;31;43m 回答错误题目是：{content},错误答案是：{answer}\033[0m')
                     self._update_bank({
                         "category": "单选题",
                         "content": content,
@@ -2012,8 +1996,7 @@ class AutoApp(Automation):
         # volumes = None
         self._read_init()
         if self.read_count <= 0:
-            logger.info(
-                f'\033[7;41m [{self.username}]【新闻阅读】积分已达成，无需重复获取积分。\033[0m')
+            logger.info(f'\033[7;41m [{self.username}]【新闻阅读】积分已达成，无需重复获取积分。\033[0m')
             return
         logger.debug(f'正在进行新闻学习...')
         self.kaleidoscope()
@@ -2199,12 +2182,13 @@ class AutoApp(Automation):
                 last_string = ""
 
                 while True:
+                    
                     subscribe_buttons = self.driver.xpath(rules["subscribe_subs_buttons"]).all()
                     for subs_button in subscribe_buttons:
                         if subs_button.rect[3] < 60:
                             continue
                         if subs_button.screenshot().getpixel((32, 32))[1] == 36: #228 36 23 的订阅的颜色 ,242 243 245为已订阅的颜色
-                            #subs_button.click()
+                            subs_button.click()
                             self.subscribe_times += 1
                             time.sleep(1)
                             logger.info(
@@ -2213,12 +2197,14 @@ class AutoApp(Automation):
                             logger.info(
                                 f'[{self.username}]\033[7;41m 已经执行【订阅】{self.subscribe_times}次，完成【订阅】。\033[0m')
                             return
-
-                    current_string = self.driver.xpath("//android.view.View/android.widget.ImageView[2][last()]/preceding-sibling::android.view.View[1]/@content-desc").all()[-1].elem
-                    if current_string == last_string:
-                        break
-                    else:
-                        last_string = current_string
+                    try:
+                        current_string = self.driver.xpath("//android.view.View[last()]/android.widget.ImageView[2]/../android.view.View").attrib["content-desc"]
+                        if current_string == last_string:
+                            break
+                        else:
+                            last_string = current_string
+                    except (XPathElementNotFoundError, XPathElementNotFoundError):
+                        logger.error(f'找不到元素: {last_string}')
                     self.swipe_up()
                     time.sleep(2)
                 # time.sleep(1)
@@ -2246,7 +2232,7 @@ class AutoApp(Automation):
         """
         订阅模块 +2
         """
-        self._subscribe_init()
+        #self._subscribe_init()
         if self.subscribe_times < 2:
             self.safe_click(rules["mine_entry"])
             self.safe_click(rules["subscribe_entry"])

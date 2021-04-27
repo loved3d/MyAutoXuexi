@@ -35,17 +35,17 @@ def gen_keypair():
     # rsa算法生成实例
     rsa = RSA.generate(1024, random_generator)
     private_pem = rsa.exportKey()
-    with open('ghost-private.pem', 'wb') as f:
+    with open('data/ghost-private.pem', 'wb') as f:
         f.write(private_pem)
 
     public_pem = rsa.publickey().exportKey()
-    with open('ghost-public.pem', 'wb') as f:
+    with open('data/ghost-public.pem', 'wb') as f:
         f.write(public_pem)
 
 
 # 加密
 def encrypt(text):
-    with open('d:\\rsa\\public.pem', "r") as f:
+    with open('data/public.pem', "r") as f:
         key = f.read()
         rsakey = RSA.importKey(key)  # 导入读取到的公钥
         cipher = Cipher_pkcs1_v1_5.new(rsakey)  # 生成对象
@@ -57,7 +57,7 @@ def encrypt(text):
 
 # 解密
 def decrypt(text):
-    with open('d:\\rsa\\private.pem') as f:
+    with open('data/private.pem') as f:
         key = f.read()
         rsakey = RSA.importKey(key)  # 导入读取到的私钥
         cipher = Cipher_pkcs1_v1_5.new(rsakey)  # 生成对象
@@ -79,7 +79,7 @@ passwordlist = []
 app_argslist = []
 
 userscfg = ConfigParser()
-userscfg.read(r'config\\users.ini', encoding='utf-8')
+userscfg.read(r'config/users.ini', encoding='utf-8')
 
 # 获得密文
 for i in range(len(userscfg.items("users"))//2):
