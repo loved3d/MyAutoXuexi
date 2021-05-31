@@ -73,7 +73,7 @@ class Automation:
         self.driver.implicitly_wait(15)
         self.driver.xpath.logger.setLevel(logging.DEBUG)
         if is_true_machine:
-            self.unlock_phone()
+            self.unlock_phone(5)
 
 
     @staticmethod
@@ -206,16 +206,21 @@ class Automation:
                 time.sleep(1)
 
     #真机 亮屏 解锁屏幕
-    def unlock_phone(self):
+    def unlock_phone(self, maxretry=10):
+        self.driver.app_stop(cfg.get('capability', 'apppackage'))
         self.driver.screen_off()
         time.sleep(2)
         logger.debug(f'真机 mi 5 解锁屏幕')
         self.driver.screen_on()
-        self.driver.swipe_ext("up")
-        time.sleep(2)
+        while maxretry > 0:
+            time.sleep(2)
+            if self.driver(text="返回").exists:
+                break
+            self.driver.swipe_ext("up")
+            maxretry -= 1
         self.driver.swipe_points([(0.502, 0.82), (0.77, 0.52), (0.229, 0.52)], 0.2)
+        #self.driver.touch.down(252,1151).move(559,1431).move(804,1674).move(558,1666).up(558,1666)
         time.sleep(2)
-        self.driver.app_stop(cfg.get('capability', 'apppackage'))
 
     # def __del__(self):
     #     try:
@@ -700,11 +705,11 @@ class AutoApp(Automation):
         """ 搜索单选题模块 """
         quiz_option = None
         if content != '':
-            content = re.match(r'.*?\.(.*)', content).group(1).strip()
+            content = re.match(r'^\d+\.(.*)', content).group(1).strip()
             content = content.strip('\r\n').replace(u'\u3000', u' ').replace(u'\xa0', u' ').strip()
             content = ' '.join(content.split())
         if options is not None:
-            quiz_option = [re.match(r'.*?\.(.*)', x).group(1).strip()
+            quiz_option = [re.match(r'^[A-Z]\.(.*)', x).group(1).strip()
                            for x in options]
         letters = 'AB'
         answer = ''
@@ -1834,9 +1839,11 @@ class AutoApp(Automation):
         """
         logger.info(f'[{self.username}]预计阅读新闻{num}则')
         time.sleep(3)
+        today = datetime.datetime.today().strftime("%Y-%m-%d")
+        yesterday = (datetime.datetime.today() + datetime.timedelta(-1)).strftime("%Y-%m-%d")
         while num > 0:  # or ssc_count:
             while True:
-                articles = self.driver.xpath(rules["article_list1"]).all()
+                articles = self.driver.xpath(rules['article_list0'] % yesterday).all()
                 break
             for article in articles:
                 title = article.text
